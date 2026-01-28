@@ -1,0 +1,16 @@
+{
+  "apiVersion": 2,
+  "name": "ct-forms/ct-form",
+  "title": "CT Form",
+  "category": "widgets",
+  "icon": "feedback",
+  "description": "Insert a CT Form by selecting a form.",
+  "attributes": {
+    "formId": {
+      "type": "number",
+      "default": 0
+    }
+  },
+  "editorScript": "file:./editor.js",
+  "renderCallback": "ct_forms_block_render"
+}
