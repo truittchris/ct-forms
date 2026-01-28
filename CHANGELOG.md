@@ -1,3 +1,6 @@
+## 1.0.43 - 2026-01-28
+- Fix: per-form reCAPTCHA checkbox on Edit Form now saves correctly.
+
 ## 1.0.42
 - Add per-form reCAPTCHA toggle and render widget on forms.
 - Only enforce reCAPTCHA on forms where enabled.

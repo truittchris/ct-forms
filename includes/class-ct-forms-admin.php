@@ -364,9 +364,27 @@ private static function format_submitted_cell_html( $submitted_raw ) {
         $out['from_mode'] = $mode;
         $out['enforce_from_domain'] = ! empty( $input['enforce_from_domain'] ) ? 1 : 0;
 
-        $out['recaptcha_enabled'] = ! empty( $input['recaptcha_enabled'] ) ? 1 : 0;
+        $type = isset( $input['recaptcha_type'] ) ? sanitize_key( $input['recaptcha_type'] ) : '';
+        $allowed_types = array( 'disabled', 'v2_checkbox', 'v2_invisible', 'v3' );
+        if ( '' === $type ) {
+            // Back-compat: older versions used a boolean recaptcha_enabled option.
+            $type = ! empty( $input['recaptcha_enabled'] ) ? 'v2_checkbox' : 'disabled';
+        }
+        if ( ! in_array( $type, $allowed_types, true ) ) {
+            $type = 'disabled';
+        }
+
+        $out['recaptcha_type'] = $type;
+        $out['recaptcha_enabled'] = ( 'disabled' !== $type ) ? 1 : 0;
+
         $out['recaptcha_site_key'] = isset( $input['recaptcha_site_key'] ) ? sanitize_text_field( $input['recaptcha_site_key'] ) : '';
         $out['recaptcha_secret_key'] = isset( $input['recaptcha_secret_key'] ) ? sanitize_text_field( $input['recaptcha_secret_key'] ) : '';
+
+        $out['recaptcha_v3_action'] = isset( $input['recaptcha_v3_action'] ) ? sanitize_text_field( $input['recaptcha_v3_action'] ) : 'ct_forms_submit';
+        $th = isset( $input['recaptcha_v3_threshold'] ) ? floatval( $input['recaptcha_v3_threshold'] ) : 0.5;
+        if ( $th < 0 ) { $th = 0; }
+        if ( $th > 1 ) { $th = 1; }
+        $out['recaptcha_v3_threshold'] = $th;
 
         return $out;
     }
@@ -385,14 +403,25 @@ private static function format_submitted_cell_html( $submitted_raw ) {
             'delete_on_uninstall' => 0,
             // reCAPTCHA (v2 checkbox)
             'recaptcha_enabled' => 0,
+            'recaptcha_type' => 'disabled',
             'recaptcha_site_key' => '',
-            'recaptcha_secret_key' => ''
+            'recaptcha_secret_key' => '',
+            'recaptcha_v3_action' => 'ct_forms_submit',
+            'recaptcha_v3_threshold' => 0.5
         );
 
         $s = get_option( 'ct_forms_settings', array() );
         if ( ! is_array( $s ) ) { $s = array(); }
-        return array_merge( $defaults, $s );
-    }
+        $s = array_merge( $defaults, $s );
+
+        // Back-compat: older versions used a boolean recaptcha_enabled option.
+        if ( empty( $s['recaptcha_type'] ) ) {
+            $s['recaptcha_type'] = ! empty( $s['recaptcha_enabled'] ) ? 'v2_checkbox' : 'disabled';
+        }
+        $s['recaptcha_enabled'] = ( 'disabled' !== $s['recaptcha_type'] ) ? 1 : 0;
+
+        return $s;
+}
 
     public static function page_forms() {
         if ( ! current_user_can( 'ct_forms_manage' ) ) { wp_die( 'Not allowed' ); }
@@ -894,6 +923,10 @@ private static function page_form_builder( $form_id ) {
         $settings['email_body'] = isset( $_POST['email_body'] ) ? wp_kses_post( self::normalize_template_newlines( wp_unslash( $_POST['email_body'] ) ) ) : $settings['email_body'];
 
         $settings['attach_uploads'] = ! empty( $_POST['attach_uploads'] ) ? 1 : 0;
+
+        // Per-form spam protection.
+        // Checkbox fields are omitted from POST when unchecked, so default to 0.
+        $settings['recaptcha_enabled'] = ! empty( $_POST['recaptcha_enabled'] ) ? 1 : 0;
 
         $rules_json = isset( $_POST['routing_rules_json'] ) ? wp_unslash( $_POST['routing_rules_json'] ) : '';
         $rules = json_decode( (string) $rules_json, true );
@@ -1655,25 +1688,40 @@ private static function page_form_builder( $form_id ) {
                             <p class="description">0 keeps entries indefinitely. If you set a number, old entries will be deleted daily.</p>
                         </td>
                     </tr>
-                    
+
                     <tr>
                         <th scope="row">reCAPTCHA</th>
                         <td>
-                            <label>
-                                <input type="checkbox" name="ct_forms_settings[recaptcha_enabled]" value="1" <?php checked( ! empty( $s['recaptcha_enabled'] ) ); ?>>
-                                Enable Google reCAPTCHA (v2 checkbox)
-                            </label>
-                            <p class="description">Adds a reCAPTCHA checkbox to CT Forms and verifies submissions server-side to reduce spam.</p>
+                            <p class="description">Choose the reCAPTCHA type you created in Google reCAPTCHA. Keys must match the selected type.</p>
+
+                            <p style="margin:12px 0 6px;"><label for="ct_forms_recaptcha_type">Type</label></p>
+                            <select id="ct_forms_recaptcha_type" name="ct_forms_settings[recaptcha_type]">
+                                <option value="disabled" <?php selected( $s['recaptcha_type'], 'disabled' ); ?>>Disabled</option>
+                                <option value="v2_checkbox" <?php selected( $s['recaptcha_type'], 'v2_checkbox' ); ?>>reCAPTCHA v2 - checkbox</option>
+                                <option value="v2_invisible" <?php selected( $s['recaptcha_type'], 'v2_invisible' ); ?>>reCAPTCHA v2 - invisible</option>
+                                <option value="v3" <?php selected( $s['recaptcha_type'], 'v3' ); ?>>reCAPTCHA v3 (score-based)</option>
+                            </select>
 
                             <p style="margin:12px 0 6px;"><label for="ct_forms_recaptcha_site_key">Site key</label></p>
                             <input id="ct_forms_recaptcha_site_key" type="text" class="regular-text" name="ct_forms_settings[recaptcha_site_key]" value="<?php echo esc_attr( $s['recaptcha_site_key'] ); ?>">
 
                             <p style="margin:12px 0 6px;"><label for="ct_forms_recaptcha_secret_key">Secret key</label></p>
                             <input id="ct_forms_recaptcha_secret_key" type="text" class="regular-text" name="ct_forms_settings[recaptcha_secret_key]" value="<?php echo esc_attr( $s['recaptcha_secret_key'] ); ?>">
+
+                            <div style="margin-top:12px;padding:10px 12px;border:1px solid #ccd0d4;background:#fff;">
+                                <p style="margin:0 0 8px;"><strong>v3 options</strong></p>
+                                <p style="margin:8px 0 6px;"><label for="ct_forms_recaptcha_v3_action">Action name</label></p>
+                                <input id="ct_forms_recaptcha_v3_action" type="text" class="regular-text" name="ct_forms_settings[recaptcha_v3_action]" value="<?php echo esc_attr( $s['recaptcha_v3_action'] ); ?>">
+                                <p class="description" style="margin-top:6px;">Used only for v3. Must match the action returned by Google for this token.</p>
+
+                                <p style="margin:12px 0 6px;"><label for="ct_forms_recaptcha_v3_threshold">Minimum score (0.0 - 1.0)</label></p>
+                                <input id="ct_forms_recaptcha_v3_threshold" type="number" step="0.1" min="0" max="1" name="ct_forms_settings[recaptcha_v3_threshold]" value="<?php echo esc_attr( $s['recaptcha_v3_threshold'] ); ?>">
+                                <p class="description" style="margin-top:6px;">Submissions with a lower score will be rejected.</p>
+                            </div>
                         </td>
                     </tr>
 
-                    <tr>
+<tr>
                         <th scope="row">Delete data on uninstall</th>
                         <td>
                             <label><input type="checkbox" name="ct_forms_settings[delete_on_uninstall]" value="1" <?php checked( ! empty( $s['delete_on_uninstall'] ) ); ?>> Enable</label>

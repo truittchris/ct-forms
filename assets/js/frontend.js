@@ -85,4 +85,79 @@
       }
     }
   });
+
+  // reCAPTCHA support
+  function hasRecaptchaField($form){
+    return $form.find('.ct-forms-field-recaptcha').length > 0;
+  }
+
+  $(document).on('submit', '.ct-forms-form', function(e){
+    if(!window.ctFormsRecaptcha){ return; }
+    var cfg = window.ctFormsRecaptcha || {};
+    var type = (cfg.type || '').toString();
+    if(type !== 'v3' && type !== 'v2_invisible'){ return; }
+
+    var $form = $(this);
+    if(!hasRecaptchaField($form)){ return; }
+
+    // Prevent infinite loops when we re-submit programmatically.
+    if($form.data('ctFormsRecaptchaDone')){ return; }
+    $form.data('ctFormsRecaptchaDone', true);
+
+    if(typeof window.grecaptcha === 'undefined'){
+      // Let the submission proceed - server-side will error if needed.
+      $form.data('ctFormsRecaptchaDone', false);
+      return;
+    }
+
+    e.preventDefault();
+
+    var siteKey = (cfg.siteKey || '').toString();
+    var action = (cfg.action || 'ct_forms_submit').toString();
+
+    if(type === 'v3'){
+      window.grecaptcha.ready(function(){
+        window.grecaptcha.execute(siteKey, {action: action}).then(function(token){
+          var $input = $form.find('input[name="g-recaptcha-response"]').first();
+          if(!$input.length){
+            $input = $('<input type="hidden" name="g-recaptcha-response" value="">').appendTo($form);
+          }
+          $input.val(token);
+          $form.trigger('ctForms:recaptchaComplete');
+          $form[0].submit();
+        }).catch(function(){
+          $form.data('ctFormsRecaptchaDone', false);
+          $form[0].submit();
+        });
+      });
+      return;
+    }
+
+    // v2 invisible
+    try {
+      var $box = $form.find('.g-recaptcha').first();
+      var widgetId = $box.data('ctFormsWidgetId');
+      if(typeof widgetId === 'undefined'){
+        widgetId = window.grecaptcha.render($box[0], {
+          sitekey: siteKey,
+          size: 'invisible',
+          callback: function(token){
+            var $input = $form.find('input[name="g-recaptcha-response"]').first();
+            if(!$input.length){
+              $input = $('<input type="hidden" name="g-recaptcha-response" value="">').appendTo($form);
+            }
+            $input.val(token);
+            $form.trigger('ctForms:recaptchaComplete');
+            $form[0].submit();
+          }
+        });
+        $box.data('ctFormsWidgetId', widgetId);
+      }
+      window.grecaptcha.execute(widgetId);
+    } catch(err){
+      $form.data('ctFormsRecaptchaDone', false);
+      $form[0].submit();
+    }
+  });
+
 })(jQuery);

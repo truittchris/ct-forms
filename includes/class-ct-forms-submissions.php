@@ -5,50 +5,73 @@ final class CT_Forms_Submissions {
 
     private static function verify_recaptcha_or_throw( $form_id ) {
         $settings = CT_Forms_Admin::get_settings();
-        if ( empty( $settings['recaptcha_enabled'] ) ) {
-            return;
-        }
 
-        $form_settings = CT_Forms_CPT::get_form_settings( (int) $form_id );
+        // Per-form toggle: if disabled for this form, skip verification entirely.
+        $form_settings = array();
+        if ( class_exists( 'CT_Forms_CPT' ) && is_callable( array( 'CT_Forms_CPT', 'get_form_settings' ) ) ) {
+            $form_settings = (array) CT_Forms_CPT::get_form_settings( (int) $form_id );
+        }
         if ( empty( $form_settings['recaptcha_enabled'] ) ) {
             return;
         }
 
-        $secret = isset( $settings['recaptcha_secret_key'] ) ? (string) $settings['recaptcha_secret_key'] : '';
-        if ( '' === trim( $secret ) ) {
+        $type = isset( $settings['recaptcha_type'] ) ? (string) $settings['recaptcha_type'] : '';
+        if ( '' === $type ) {
+            // Back-compat: older versions used a boolean recaptcha_enabled option.
+            $type = ! empty( $settings['recaptcha_enabled'] ) ? 'v2_checkbox' : 'disabled';
+        }
+
+        if ( 'disabled' === $type ) {
+            return;
+        }
+
+        $secret_key = isset( $settings['recaptcha_secret_key'] ) ? trim( (string) $settings['recaptcha_secret_key'] ) : '';
+        if ( empty( $secret_key ) ) {
             // Enabled but not configured – do not block submissions.
             return;
         }
 
-        $token = isset( $_POST['g-recaptcha-response'] ) ? sanitize_text_field( wp_unslash( $_POST['g-recaptcha-response'] ) ) : '';
-        if ( '' === trim( $token ) ) {
-            throw new Exception( 'missing_token' );
+        $recaptcha_response = isset( $_POST['g-recaptcha-response'] ) ? sanitize_text_field( wp_unslash( $_POST['g-recaptcha-response'] ) ) : '';
+        if ( empty( $recaptcha_response ) ) {
+            throw new Exception( 'recaptcha_missing' );
         }
 
-        $remoteip = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : '';
-
-        $response = wp_remote_post(
-            'https://www.google.com/recaptcha/api/siteverify',
-            array(
-                'timeout' => 10,
-                'body'    => array(
-                    'secret'   => $secret,
-                    'response' => $token,
-                    'remoteip' => $remoteip,
-                ),
-            )
-        );
+        $verify_url = 'https://www.google.com/recaptcha/api/siteverify';
+        $response = wp_remote_post( $verify_url, array(
+            'body' => array(
+                'secret'   => $secret_key,
+                'response' => $recaptcha_response,
+                'remoteip' => isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : '',
+            ),
+            'timeout' => 10,
+        ) );
 
         if ( is_wp_error( $response ) ) {
-            throw new Exception( 'request_failed' );
+            throw new Exception( 'recaptcha_request_failed' );
         }
 
-        $code = (int) wp_remote_retrieve_response_code( $response );
-        $body = (string) wp_remote_retrieve_body( $response );
+        $body = wp_remote_retrieve_body( $response );
         $data = json_decode( $body, true );
 
-        if ( 200 !== $code || ! is_array( $data ) || empty( $data['success'] ) ) {
-            throw new Exception( 'verification_failed' );
+        if ( empty( $data['success'] ) ) {
+            throw new Exception( 'recaptcha_failed' );
+        }
+
+        // v3 adds score + action – enforce if configured
+        if ( 'v3' === $type ) {
+            $threshold = isset( $settings['recaptcha_v3_threshold'] ) ? floatval( $settings['recaptcha_v3_threshold'] ) : 0.5;
+            if ( $threshold < 0 ) { $threshold = 0; }
+            if ( $threshold > 1 ) { $threshold = 1; }
+
+            $score = isset( $data['score'] ) ? floatval( $data['score'] ) : 0.0;
+            if ( $score < $threshold ) {
+                throw new Exception( 'recaptcha_score_too_low' );
+            }
+
+            $expected_action = isset( $settings['recaptcha_v3_action'] ) ? trim( (string) $settings['recaptcha_v3_action'] ) : '';
+            if ( '' !== $expected_action && isset( $data['action'] ) && $expected_action !== (string) $data['action'] ) {
+                throw new Exception( 'recaptcha_action_mismatch' );
+            }
         }
     }
 

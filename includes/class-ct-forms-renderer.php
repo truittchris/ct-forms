@@ -46,13 +46,47 @@ public static function shortcode( $atts ) {
         wp_enqueue_style( 'ct-forms-frontend', CT_FORMS_PLUGIN_URL . 'assets/css/frontend.css', array(), CT_FORMS_VERSION );
         wp_enqueue_script( 'ct-forms-frontend', CT_FORMS_PLUGIN_URL . 'assets/js/frontend.js', array( 'jquery' ), CT_FORMS_VERSION, true );
 
-        // reCAPTCHA (v2 checkbox) – only enqueue if enabled globally AND for this form
+        // reCAPTCHA – enqueue only if enabled globally AND for this form
         $global_settings = CT_Forms_Admin::get_settings();
-        if ( ! empty( $settings['recaptcha_enabled'] ) && ! empty( $global_settings['recaptcha_enabled'] ) && ! empty( $global_settings['recaptcha_site_key'] ) ) {
-            wp_enqueue_script( 'ct-forms-recaptcha', 'https://www.google.com/recaptcha/api.js', array(), null, true );
+
+        $recaptcha_type = isset( $global_settings['recaptcha_type'] ) ? $global_settings['recaptcha_type'] : '';
+        if ( '' === $recaptcha_type ) {
+            // Back-compat: older versions used a boolean recaptcha_enabled option.
+            $recaptcha_type = ! empty( $global_settings['recaptcha_enabled'] ) ? 'v2_checkbox' : 'disabled';
         }
 
-        $form_uid = 'ct-form-' . $form_id . '-' . wp_generate_uuid4();
+        $has_keys = ( ! empty( $global_settings['recaptcha_site_key'] ) && ! empty( $global_settings['recaptcha_secret_key'] ) );
+
+        if ( 'disabled' !== $recaptcha_type && $has_keys && ! empty( $settings['recaptcha_enabled'] ) ) {
+
+            // Provide config to the frontend script (used for v2 invisible and v3).
+            wp_localize_script( 'ct-forms-frontend', 'ctFormsRecaptcha', array(
+                'type'    => $recaptcha_type,
+                'siteKey' => $global_settings['recaptcha_site_key'],
+                'action'  => isset( $global_settings['recaptcha_v3_action'] ) ? $global_settings['recaptcha_v3_action'] : 'ct_forms_submit',
+            ) );
+
+            if ( 'v3' === $recaptcha_type ) {
+                wp_enqueue_script(
+                    'ct-forms-recaptcha',
+                    'https://www.google.com/recaptcha/api.js?render=' . rawurlencode( $global_settings['recaptcha_site_key'] ),
+                    array(),
+                    null,
+                    true
+                );
+            } else {
+                // v2 checkbox or v2 invisible
+                wp_enqueue_script(
+                    'ct-forms-recaptcha',
+                    'https://www.google.com/recaptcha/api.js',
+                    array(),
+                    null,
+                    true
+                );
+            }
+        }
+
+$form_uid = 'ct-form-' . $form_id . '-' . wp_generate_uuid4();
 
         $action = esc_url( admin_url( 'admin-post.php' ) );
         $nonce = wp_create_nonce( 'ct_forms_submit_' . $form_id );
@@ -113,6 +147,32 @@ public static function shortcode( $atts ) {
                 <?php foreach ( $def['fields'] as $field ) :
                     echo self::render_field( $field );
                 endforeach; ?>
+
+                <?php
+                $recaptcha_site_key = isset( $global_settings['recaptcha_site_key'] ) ? trim( (string) $global_settings['recaptcha_site_key'] ) : '';
+                $recaptcha_type = isset( $global_settings['recaptcha_type'] ) ? (string) $global_settings['recaptcha_type'] : '';
+                if ( '' === $recaptcha_type ) {
+                    // Back-compat: older versions used a boolean recaptcha_enabled option.
+                    $recaptcha_type = ! empty( $global_settings['recaptcha_enabled'] ) ? 'v2_checkbox' : 'disabled';
+                }
+
+                $recaptcha_enabled_for_form = ( 'disabled' !== $recaptcha_type && ! empty( $recaptcha_site_key ) && ! empty( $settings['recaptcha_enabled'] ) );
+
+                if ( $recaptcha_enabled_for_form ) :
+                    ?>
+                    <div class="ct-forms-field ct-forms-field-recaptcha">
+                        <?php if ( 'v3' === $recaptcha_type ) : ?>
+                            <input type="hidden" name="g-recaptcha-response" value="">
+                        <?php elseif ( 'v2_invisible' === $recaptcha_type ) : ?>
+                            <div class="g-recaptcha" data-sitekey="<?php echo esc_attr( $recaptcha_site_key ); ?>" data-size="invisible"></div>
+                        <?php else : ?>
+                            <div class="g-recaptcha" data-sitekey="<?php echo esc_attr( $recaptcha_site_key ); ?>"></div>
+                        <?php endif; ?>
+                    </div>
+                    <?php
+                endif;
+                ?>
+
 
                 <button type="submit" class="ct-forms-submit"><?php echo esc_html__( 'Submit', 'ct-forms' ); ?></button>
             </form>

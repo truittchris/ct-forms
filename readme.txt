@@ -4,7 +4,7 @@ Tags: forms, contact form, file uploads, entries, notifications
 Requires at least: 6.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.0.42
+Stable tag: 1.0.45
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -39,6 +39,12 @@ CT Forms - Entries.
 Uploads are stored under wp-content/uploads/ct-forms/ (site-specific paths may vary).
 
 == Changelog ==
+
+= 1.0.45 =
+* Settings: add selectable reCAPTCHA type (Disabled, v2 checkbox, v2 invisible, v3)
+* Frontend: support v3 token generation and v2 invisible execution
+* Backend: verify v3 score/action when enabled
+
 = 1.0.40 =
 * Packaging: align plugin version values, add WordPress readme, remove dev scripts from distribution zip.
 
