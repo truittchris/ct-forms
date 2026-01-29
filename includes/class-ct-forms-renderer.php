@@ -71,7 +71,7 @@ public static function shortcode( $atts ) {
                     'ct-forms-recaptcha',
                     'https://www.google.com/recaptcha/api.js?render=' . rawurlencode( $global_settings['recaptcha_site_key'] ),
                     array(),
-                    null,
+                    CT_FORMS_VERSION,
                     true
                 );
             } else {
@@ -80,7 +80,7 @@ public static function shortcode( $atts ) {
                     'ct-forms-recaptcha',
                     'https://www.google.com/recaptcha/api.js',
                     array(),
-                    null,
+                    CT_FORMS_VERSION,
                     true
                 );
             }

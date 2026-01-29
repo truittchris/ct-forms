@@ -14,7 +14,7 @@
  * Plugin URI:        https://christruitt.com/ct-forms/
  * Description:       Create, embed, and manage forms with file uploads, notifications, autoresponders, and entry storage.
  * Version:           1.0.48
- * Author:            Christopher Truitt
+ * Author:            Chris Truitt
  * Author URI:        https://christruitt.com
  * License:           GPL-2.0-or-later
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
@@ -39,6 +39,25 @@ define( 'CT_FORMS_VERSION', '1.0.48' );
 define( 'CT_FORMS_PLUGIN_FILE', __FILE__ );
 define( 'CT_FORMS_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'CT_FORMS_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
+
+// Plugin row meta links (Plugins → Installed Plugins).
+define( 'CT_FORMS_SITE_URL', 'https://christruitt.com' );
+define( 'CT_FORMS_PLUGIN_PAGE_URL', 'https://christruitt.com/ct-forms/' );
+define( 'CT_FORMS_TIP_JAR_URL', 'https://christruitt.com/tip-jar' );
+
+add_filter( 'plugin_row_meta', function( array $links, string $file ): array {
+    if ( $file !== plugin_basename( __FILE__ ) ) {
+        return $links;
+    }
+
+    $support = admin_url( 'admin.php?page=ct-forms-support' );
+
+    $links[] = '<a href="' . esc_url( $support ) . '">Support</a>';
+    $links[] = '<a href="' . esc_url( CT_FORMS_PLUGIN_PAGE_URL ) . '" target="_blank" rel="noopener">Plugin Page</a>';
+    $links[] = '<a href="' . esc_url( CT_FORMS_TIP_JAR_URL ) . '" target="_blank" rel="noopener">Tip Jar</a>';
+
+    return $links;
+}, 10, 2 );
 
 require_once CT_FORMS_PLUGIN_DIR . 'includes/class-ct-forms.php';
 
