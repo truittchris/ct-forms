@@ -16,7 +16,7 @@ dist/
 build/
 
 # Archives
-#*.zip
+*.zip
 
 # Local WP configs
 *.local
