@@ -1,4 +1,7 @@
-## 1.0.49 - 2026-01-29
+## 1.0.50 - 2026-01-29
+- GH: add release zip workflow
+
+- ## 1.0.49 - 2026-01-29
 - Confirmation: make the confirmation message field a WYSIWYG editor.
 - Fix: normalize stripped newline artifacts so "nn" no longer appears in confirmation output.
 
