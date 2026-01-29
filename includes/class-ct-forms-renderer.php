@@ -213,6 +213,7 @@ $form_uid = 'ct-form-' . $form_id . '-' . wp_generate_uuid4();
         if ( 1 === $count ) {
             return __( 'Your submission was received, but one attachment was skipped.', 'ct-forms' );
         }
+        /* translators: %d: number of attachments skipped. */
         return sprintf( __( 'Your submission was received, but %d attachments were skipped.', 'ct-forms' ), (int) $count );
     }
 
@@ -259,6 +260,25 @@ public static function render_field( $field ) {
                         $required ? 'required' : '',
                         esc_attr( $common['placeholder'] )
                     );
+                    break;
+
+
+                case 'date':
+                    echo '<input type="date" id="' . esc_attr( $common['id'] ) . '" name="' . esc_attr( $common['name'] ) . '" ' . ( $required ? 'required' : '' ) . ' placeholder="' . esc_attr( $common['placeholder'] ) . '">';
+                    break;
+
+                case 'time':
+                    echo '<input type="time" id="' . esc_attr( $common['id'] ) . '" name="' . esc_attr( $common['name'] ) . '" ' . ( $required ? 'required' : '' ) . ' placeholder="' . esc_attr( $common['placeholder'] ) . '">';
+                    break;
+
+                case 'state':
+                    $states = self::get_us_states();
+                    echo '<select id="' . esc_attr( $common['id'] ) . '" name="' . esc_attr( $common['name'] ) . '" ' . ( $required ? 'required' : '' ) . '>';
+                    echo '<option value="">' . esc_html__( 'Select state', 'ct-forms' ) . '</option>';
+                    foreach ( $states as $abbr => $name_label ) {
+                        echo '<option value="' . esc_attr( $abbr ) . '">' . esc_html( $name_label ) . '</option>';
+                    }
+                    echo '</select>';
                     break;
 
                 case 'select':
@@ -431,6 +451,63 @@ public static function render_field( $field ) {
         </div>
         <?php
         return ob_get_clean();
+    }
+
+
+    private static function get_us_states() {
+        return array(
+            'AL' => 'Alabama',
+            'AK' => 'Alaska',
+            'AZ' => 'Arizona',
+            'AR' => 'Arkansas',
+            'CA' => 'California',
+            'CO' => 'Colorado',
+            'CT' => 'Connecticut',
+            'DE' => 'Delaware',
+            'DC' => 'District of Columbia',
+            'FL' => 'Florida',
+            'GA' => 'Georgia',
+            'HI' => 'Hawaii',
+            'ID' => 'Idaho',
+            'IL' => 'Illinois',
+            'IN' => 'Indiana',
+            'IA' => 'Iowa',
+            'KS' => 'Kansas',
+            'KY' => 'Kentucky',
+            'LA' => 'Louisiana',
+            'ME' => 'Maine',
+            'MD' => 'Maryland',
+            'MA' => 'Massachusetts',
+            'MI' => 'Michigan',
+            'MN' => 'Minnesota',
+            'MS' => 'Mississippi',
+            'MO' => 'Missouri',
+            'MT' => 'Montana',
+            'NE' => 'Nebraska',
+            'NV' => 'Nevada',
+            'NH' => 'New Hampshire',
+            'NJ' => 'New Jersey',
+            'NM' => 'New Mexico',
+            'NY' => 'New York',
+            'NC' => 'North Carolina',
+            'ND' => 'North Dakota',
+            'OH' => 'Ohio',
+            'OK' => 'Oklahoma',
+            'OR' => 'Oregon',
+            'PA' => 'Pennsylvania',
+            'RI' => 'Rhode Island',
+            'SC' => 'South Carolina',
+            'SD' => 'South Dakota',
+            'TN' => 'Tennessee',
+            'TX' => 'Texas',
+            'UT' => 'Utah',
+            'VT' => 'Vermont',
+            'VA' => 'Virginia',
+            'WA' => 'Washington',
+            'WV' => 'West Virginia',
+            'WI' => 'Wisconsin',
+            'WY' => 'Wyoming',
+        );
     }
 
     private static function field_error_message( $code ) {

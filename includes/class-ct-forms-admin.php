@@ -841,7 +841,7 @@ private static function page_form_builder( $form_id ) {
             $type = isset( $f['type'] ) ? sanitize_key( $f['type'] ) : 'text';
             if ( '' === $id ) { continue; }
 
-			$allowed_types = array( 'text', 'textarea', 'email', 'number', 'select', 'checkboxes', 'radios', 'file', 'diagnostics' );
+			$allowed_types = array( 'text', 'textarea', 'email', 'number', 'date', 'time', 'select', 'state', 'checkboxes', 'radios', 'file', 'diagnostics' );
             if ( ! in_array( $type, $allowed_types, true ) ) { $type = 'text'; }
 
             $field = array(
@@ -1148,6 +1148,7 @@ private static function page_form_builder( $form_id ) {
                 <div class="notice notice-success is-dismissible"><p>
                     <?php
                         $count = isset( $_GET['ct_forms_deleted_all_count'] ) ? (int) $_GET['ct_forms_deleted_all_count'] : 0;
+                        /* translators: %d: number of files deleted. */
                         echo esc_html( sprintf( _n( '%d file deleted.', '%d files deleted.', $count, 'ct-forms' ), $count ) );
                     ?>
                 </p></div>
@@ -1157,6 +1158,7 @@ private static function page_form_builder( $form_id ) {
                 <div class="notice notice-success is-dismissible"><p>
                     <?php
                         $count = isset( $_GET['ct_forms_bulk_deleted_count'] ) ? (int) $_GET['ct_forms_bulk_deleted_count'] : 0;
+                        /* translators: %d: number of files deleted. */
                         echo esc_html( sprintf( _n( '%d file deleted.', '%d files deleted.', $count, 'ct-forms' ), $count ) );
                     ?>
                 </p></div>
@@ -1354,6 +1356,7 @@ private static function page_form_builder( $form_id ) {
     }
 
     $form = get_post( (int) $entry['form_id'] );
+    /* translators: %d: form ID. */
     $form_name = $form ? $form->post_title : sprintf( __( 'Form #%d', 'ct-forms' ), (int) $entry['form_id'] );
 
     // Build download links for uploads (supports single and multi-file fields).
@@ -1807,7 +1810,10 @@ private static function page_form_builder( $form_id ) {
 
                 <div class="postbox" style="padding:16px;">
                     <h2 style="margin-top:0;"><?php esc_html_e( 'Get help', 'ct-forms' ); ?></h2>
-                    <p><?php echo esc_html( sprintf( __( 'Email %s or send a request below. Include diagnostics for fastest help.', 'ct-forms' ), $support_email ) ); ?></p>
+                    <p><?php
+                        /* translators: %s: support email address. */
+                        echo esc_html( sprintf( __( 'Email %s or send a request below. Include diagnostics for fastest help.', 'ct-forms' ), $support_email ) );
+                    ?></p>
 
                     <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
                         <?php wp_nonce_field( 'ct_forms_send_support' ); ?>
@@ -2031,6 +2037,7 @@ private static function page_form_builder( $form_id ) {
             $bulk_count  = (int) $_GET['ct_forms_bulk_count'];
             if ( $bulk_count > 0 ) {
                 echo '<div class="notice notice-success is-dismissible"><p>';
+                /* translators: %d: number of entries updated. */
                 echo esc_html( sprintf( __( 'Bulk action completed: %d item(s) updated.', 'ct-forms' ), $bulk_count ) );
                 echo '</p></div>';
             } else {
@@ -2120,7 +2127,7 @@ private static function page_form_builder( $form_id ) {
             echo '<option value="' . esc_attr( $st ) . '"' . selected( $status_filter, $st, false ) . '>' . esc_html( $label ) . '</option>';
         }
         echo '</select>';
-        submit_button( __( 'Search' ), '', '', false, array( 'id' => 'search-submit' ) );
+        submit_button( esc_html__( 'Search', 'ct-forms' ), '', '', false, array( 'id' => 'search-submit' ) );
         echo '</p>';
         echo '</form>';
 
@@ -2152,7 +2159,7 @@ private static function page_form_builder( $form_id ) {
         echo '<option value="resend_admin">' . esc_html__( 'Resend admin notification', 'ct-forms' ) . '</option>';
         echo '<option value="delete">' . esc_html__( 'Delete', 'ct-forms' ) . '</option>';
         echo '</select>';
-        submit_button( __( 'Apply' ), 'secondary', 'ct_forms_bulk_apply', false, array( 'id' => 'ct-forms-bulk-apply' ) );
+        submit_button( esc_html__( 'Apply', 'ct-forms' ), 'secondary', 'ct_forms_bulk_apply', false, array( 'id' => 'ct-forms-bulk-apply' ) );
         echo '</div>';
 
         echo '<table class="widefat striped" style="margin-top: 8px;">';
@@ -2177,9 +2184,15 @@ private static function page_form_builder( $form_id ) {
                 $fid = isset( $row['form_id'] ) ? (int) $row['form_id'] : 0;
 
                 $form_title = $fid ? get_the_title( $fid ) : '';
-                $form_title = $form_title ? $form_title : ( $fid ? sprintf( __( 'Form #%d', 'ct-forms' ), $fid ) : '–' );
-
-                $submitted_html = self::format_submitted_cell_html( $row['created_at'] ?? '' );
+                if ( ! $form_title ) {
+                    if ( $fid ) {
+                        /* translators: %d: form ID. */
+                        $form_title = sprintf( __( 'Form #%d', 'ct-forms' ), $fid );
+                    } else {
+                        $form_title = '–';
+                    }
+                }
+$submitted_html = self::format_submitted_cell_html( $row['created_at'] ?? '' );
 
                 $status = isset( $row['status'] ) ? sanitize_key( (string) $row['status'] ) : 'new';
                 if ( $status === '' || ! in_array( $status, $allowed_statuses, true ) ) { $status = 'new'; }

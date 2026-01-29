@@ -2,9 +2,9 @@
 Contributors: truittchris
 Tags: forms, contact form, file uploads, entries, notifications
 Requires at least: 6.0
-Tested up to: 6.4
+Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.0.45
+Stable tag: 1.0.48
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -40,6 +40,16 @@ Uploads are stored under wp-content/uploads/ct-forms/ (site-specific paths may v
 
 == Changelog ==
 
+= 1.0.48 =
+* Builder: add Date, Time, and State (US) field types.
+* I18n: fix placeholder ordering, add translators comments, and add missing text domain args.
+
+= 1.0.47 =
+* Frontend: remove the default confirmation border styling to avoid a nested "double box" look in common themes.
+
+= 1.0.46 =
+* Fix: resolve a PHP parse error when viewing Forms after adding reCAPTCHA type options.
+
 = 1.0.45 =
 * Settings: add selectable reCAPTCHA type (Disabled, v2 checkbox, v2 invisible, v3)
 * Frontend: support v3 token generation and v2 invisible execution
@@ -49,6 +59,12 @@ Uploads are stored under wp-content/uploads/ct-forms/ (site-specific paths may v
 * Packaging: align plugin version values, add WordPress readme, remove dev scripts from distribution zip.
 
 == Upgrade Notice ==
+
+= 1.0.48 =
+Adds Date/Time/State fields and includes i18n compliance fixes.
+
+= 1.0.47 =
+Removes default confirmation border styling to better match modern themes.
 
 = 1.0.40 =
 Packaging and version alignment improvements.

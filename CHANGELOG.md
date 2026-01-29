@@ -1,3 +1,19 @@
+## 1.0.48 - 2026-01-29
+- Builder: add Date, Time, and State (US) field types.
+- I18n: fix placeholders, add translators comments, and add missing text domain args.
+
+## 1.0.47 - 2026-01-28
+- UI: remove default confirmation border styling to avoid nested "double box" appearance.
+
+## 1.0.46 - 2026-01-28
+- Fix: resolve a PHP parse error after adding reCAPTCHA type options.
+
+## 1.0.45 - 2026-01-28
+- Settings: add selectable reCAPTCHA type (Disabled, v2 checkbox, v2 invisible, v3).
+
+## 1.0.44 - 2026-01-28
+- Fix: render reCAPTCHA widget when enabled.
+
 ## 1.0.43 - 2026-01-28
 - Fix: per-form reCAPTCHA checkbox on Edit Form now saves correctly.
 

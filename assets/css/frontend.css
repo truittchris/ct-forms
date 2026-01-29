@@ -1,9 +1,9 @@
 .ct-forms-wrap{margin:16px 0;}
-/* Confirmation message uses theme typography/colors by default */
+/* Confirmation message: keep spacing but avoid a nested "double box" look */
 .ct-forms-confirmation{
-  padding:12px 14px;
-  border-radius:8px;
-  border:1px solid currentColor;
+  padding:0;
+  border:0;
+  border-radius:0;
   background:transparent;
   margin-bottom:12px;
 }

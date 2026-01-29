@@ -74,8 +74,21 @@
     });
   }
 function fieldTemplate(field, collapsed){
-    const typeOptions = ['text','textarea','email','number','select','checkboxes','radios','file','diagnostics']
-      .map(t => `<option value="${t}" ${field.type===t?'selected':''}>${t}</option>`).join('');
+    const typeDefs = [
+      {value:'text', label:'Text'},
+      {value:'textarea', label:'Textarea'},
+      {value:'email', label:'Email'},
+      {value:'number', label:'Number'},
+      {value:'date', label:'Date'},
+      {value:'time', label:'Time'},
+      {value:'select', label:'Select'},
+      {value:'state', label:'State (US)'},
+      {value:'checkboxes', label:'Checkboxes'},
+      {value:'radios', label:'Radios'},
+      {value:'file', label:'File upload'},
+      {value:'diagnostics', label:'Diagnostics (internal)'}
+    ];
+    const typeOptions = typeDefs.map(t => `<option value="${t.value}" ${field.type===t.value?'selected':''}>${t.label}</option>`).join('');
     const requiredChecked = field.required ? 'checked' : '';
     const globalAllowed = (window.CTFormsAdmin && CTFormsAdmin.allowed_mimes) ? String(CTFormsAdmin.allowed_mimes).trim() : '';
     const globalMaxMb = (window.CTFormsAdmin && CTFormsAdmin.max_file_mb) ? parseInt(CTFormsAdmin.max_file_mb, 10) : 0;
@@ -104,6 +117,13 @@ function fieldTemplate(field, collapsed){
           <input type="checkbox" class="truitt-file-multiple" ${field.file_multiple ? 'checked' : ''}>
           Allow multiple files
         </label>
+      </div>
+    ` : (field.type==='state') ? `
+      <div class="ct-forms-inline">
+        <div>
+          <label>US State dropdown</label>
+          <div class="ct-forms-readonly">This field renders a pre–populated dropdown of U.S. states and DC. No options are needed.</div>
+        </div>
       </div>
     ` : (field.type==='select' || field.type==='checkboxes' || field.type==='radios') ? `
       <div class="ct-forms-options-editor">

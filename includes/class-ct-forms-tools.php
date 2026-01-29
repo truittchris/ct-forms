@@ -98,7 +98,10 @@ class CT_Forms_Tools {
                             <th><?php esc_html_e( 'Uploads folder', 'ct-forms' ); ?></th>
                             <td>
                                 <code><?php echo esc_html( $scan['uploads_dir'] ); ?></code><br>
-                                <?php echo esc_html( sprintf( __( '%d files, %s', 'ct-forms' ), (int) $scan['uploads_count'], esc_html( size_format( (int) $scan['uploads_bytes'] ) ) ) ); ?>
+                                <?php
+                                /* translators: 1: number of files, 2: total size. */
+                                echo esc_html( sprintf( __( '%1$d files, %2$s', 'ct-forms' ), (int) $scan['uploads_count'], size_format( (int) $scan['uploads_bytes'] ) ) );
+                                ?>
                             </td>
                         </tr>
                     </tbody>
