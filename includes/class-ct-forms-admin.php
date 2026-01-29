@@ -6,7 +6,9 @@ final class CT_Forms_Admin {
         $value = is_string( $value ) ? $value : '';
 
         // Convert escaped sequences (e.g., "\\r\\n") to real LF newlines for storage.
-        $value = str_replace( array( "\\r\\n", "\n", "\\r" ), "\n", $value );
+        $value = str_replace( array( "\r\n", "\n", "
+", "\r" ), "
+", $value );
 
         // Normalize actual CRLF/CR to LF.
         $value = preg_replace( "/\r\n|\r/", "\n", $value );
@@ -24,7 +26,7 @@ final class CT_Forms_Admin {
 		$value = preg_replace( '/(?<=\d)rnrn(?=[A-Za-z])/', "\n\n", $value );
 		$value = preg_replace( '/nn(?=\{)/', "\n\n", $value );
 		$value = preg_replace( '/nn(?=Entry\b)/', "\n\n", $value );
-		$value = preg_replace( '/(?<=[\}\]\.\)])nn/', "\n\n", $value );
+		$value = preg_replace( '/(?<=[\}\]\.\)])\s*nn/', "\n\n", $value );
 		$value = preg_replace( '/(?<=\d)nn(?=[A-Za-z])/', "\n\n", $value );
         // Common boundary patterns where the artifact appears.
         $value = preg_replace( '/rn(?=\{)/', "\n", $value );
@@ -794,12 +796,27 @@ private static function page_form_builder( $form_id ) {
                                         <option value="redirect" <?php selected( $settings['confirmation_type'], 'redirect' ); ?>><?php esc_html_e( 'Redirect', 'ct-forms' ); ?></option>
                                     </select>
                                 </label></p>
-                                <p>
-                                    <label>
-                                        <?php esc_html_e( 'Confirmation message', 'ct-forms' ); ?><br>
-                                        <textarea class="large-text" name="confirmation_message" rows="5"><?php echo esc_textarea( $settings['confirmation_message'] ); ?></textarea>
-                                    </label>
-                                </p>
+                                <div class="ct-forms-editor">
+                                    <p style="margin:0 0 6px;"><label><?php esc_html_e( 'Confirmation message', 'ct-forms' ); ?></label></p>
+                                    <?php
+                                    $ct_confirmation_message = self::normalize_template_newlines( $settings['confirmation_message'] );
+                                    wp_editor(
+                                        $ct_confirmation_message,
+                                        'ct_forms_confirmation_message',
+                                        array(
+                                            'textarea_name' => 'confirmation_message',
+                                            'textarea_rows' => 6,
+                                            'teeny'         => true,
+                                            'media_buttons' => false,
+                                            'quicktags'     => true,
+                                            'tinymce'       => array(
+                                                'toolbar1' => 'bold,italic,underline,bullist,numlist,link,unlink,undo,redo',
+                                                'toolbar2' => '',
+                                            ),
+                                        )
+                                    );
+                                    ?>
+                                </div>
                                 <p><label><?php esc_html_e( 'Redirect URL', 'ct-forms' ); ?><br><input type="url" class="large-text" name="confirmation_redirect" value="<?php echo esc_attr( $settings['confirmation_redirect'] ); ?>"></label></p>
                                 <p class="description"><?php esc_html_e( 'Tokens available: {form_name}, {entry_id}, {submitted_at}, {all_fields}, {field:your_field_id}', 'ct-forms' ); ?></p>
                             </div>

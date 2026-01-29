@@ -126,7 +126,7 @@ $form_uid = 'ct-form-' . $form_id . '-' . wp_generate_uuid4();
                     // Back-compat: if stored with literal "\n" sequences, convert to real newlines.
                     $cm = str_replace( array( "\\r\\n", "\\n", "\\r" ), "\n", $cm );
                     // Repair legacy stripped-newline artifacts in safe contexts (e.g., ".nnNext").
-                    $cm = preg_replace( '/(?<=[\}\]\.\)])nn(?=[A-Z0-9])/', "\n\n", $cm );
+                    $cm = preg_replace( '/(?<=[\}\]\.\)])\s*nn(?=[A-Z0-9])/', "\n\n", $cm );
                     echo wp_kses_post( wpautop( $cm ) );
                 ?></div>
                 <?php if ( ! empty( self::$current_field_warnings ) ) : ?>

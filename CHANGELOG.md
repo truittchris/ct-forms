@@ -1,3 +1,7 @@
+## 1.0.49 - 2026-01-29
+- Confirmation: make the confirmation message field a WYSIWYG editor.
+- Fix: normalize stripped newline artifacts so "nn" no longer appears in confirmation output.
+
 ## 1.0.48 - 2026-01-29
 - Builder: add Date, Time, and State (US) field types.
 - I18n: fix placeholders, add translators comments, and add missing text domain args.

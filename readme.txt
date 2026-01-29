@@ -4,7 +4,7 @@ Tags: forms, contact form, file uploads, entries, notifications
 Requires at least: 6.0
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.0.48
+Stable tag: 1.0.49
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -40,6 +40,10 @@ Uploads are stored under wp-content/uploads/ct-forms/ (site-specific paths may v
 
 == Changelog ==
 
+= 1.0.49 =
+* Confirmation: make the confirmation message field a WYSIWYG editor.
+* Fix: normalize stripped newline artifacts so "nn" no longer appears in confirmation output.
+
 = 1.0.48 =
 * Builder: add Date, Time, and State (US) field types.
 * I18n: fix placeholder ordering, add translators comments, and add missing text domain args.
@@ -59,6 +63,9 @@ Uploads are stored under wp-content/uploads/ct-forms/ (site-specific paths may v
 * Packaging: align plugin version values, add WordPress readme, remove dev scripts from distribution zip.
 
 == Upgrade Notice ==
+
+= 1.0.49 =
+WYSIWYG confirmation message editor and newline artifact fixes.
 
 = 1.0.48 =
 Adds Date/Time/State fields and includes i18n compliance fixes.
