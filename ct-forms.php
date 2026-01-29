@@ -13,7 +13,7 @@
  * Plugin Name:       CT Forms
  * Plugin URI:        https://christruitt.com/ct-forms/
  * Description:       Create, embed, and manage forms with file uploads, notifications, autoresponders, and entry storage.
-* Version:           1.0.49
+* Version:           1.0.50
  * Author:            Chris Truitt
  * Author URI:        https://christruitt.com
  * License:           GPL-2.0-or-later

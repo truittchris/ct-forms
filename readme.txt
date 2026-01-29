@@ -4,7 +4,7 @@ Tags: forms, contact form, file uploads, entries, notifications
 Requires at least: 6.0
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.0.49
+Stable tag: 1.0.50
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
