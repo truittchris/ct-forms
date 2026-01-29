@@ -1,0 +1,51 @@
+name: Build and attach WordPress plugin ZIP
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build-zip:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Build installable ZIP
+        env:
+          PLUGIN_SLUG: ct-forms
+          TAG_NAME: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+
+          rm -rf dist
+          mkdir -p "dist/${PLUGIN_SLUG}"
+
+          rsync -a --delete \
+            --exclude=".git" \
+            --exclude=".github" \
+            --exclude="dist" \
+            --exclude="node_modules" \
+            --exclude="vendor" \
+            --exclude="tests" \
+            --exclude="*.zip" \
+            --exclude="PluginInstaller" \
+            --exclude="build-zip.sh" \
+            --exclude="build-zip.ps1" \
+            --exclude="bump-version.sh" \
+            --exclude="bump-version.ps1" \
+            --exclude="CHANGELOG.md" \
+            ./ "dist/${PLUGIN_SLUG}/"
+
+          ZIP_NAME="${PLUGIN_SLUG}-${TAG_NAME}.zip"
+          (cd dist && zip -r "../${ZIP_NAME}" "${PLUGIN_SLUG}")
+
+          echo "ZIP_NAME=${ZIP_NAME}" >> "$GITHUB_ENV"
+
+      - name: Upload ZIP to the GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.ZIP_NAME }}
