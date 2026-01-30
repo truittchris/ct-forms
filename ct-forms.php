@@ -13,7 +13,7 @@
  * Plugin Name:       CT Forms
  * Plugin URI:        https://christruitt.com/ct-forms/
  * Description:       Create, embed, and manage forms with file uploads, notifications, autoresponders, and entry storage.
-* Version:           1.0.50
+ * Version:           1.0.51
  * Author:            Chris Truitt
  * Author URI:        https://christruitt.com
  * License:           GPL-2.0-or-later
@@ -32,9 +32,11 @@
  * GNU General Public License for more details.
  */
 
-if ( ! defined( 'ABSPATH' ) ) { exit; }
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
 
-define( 'CT_FORMS_VERSION', '1.0.49' );
+define( 'CT_FORMS_VERSION', '1.0.51' );
 
 define( 'CT_FORMS_PLUGIN_FILE', __FILE__ );
 define( 'CT_FORMS_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
@@ -45,25 +47,41 @@ define( 'CT_FORMS_SITE_URL', 'https://christruitt.com' );
 define( 'CT_FORMS_PLUGIN_PAGE_URL', 'https://christruitt.com/ct-forms/' );
 define( 'CT_FORMS_TIP_JAR_URL', 'https://christruitt.com/tip-jar' );
 
-add_filter( 'plugin_row_meta', function( array $links, string $file ): array {
-    if ( $file !== plugin_basename( __FILE__ ) ) {
-        return $links;
-    }
+/**
+ * Add Settings/Support links to the plugin row meta.
+ *
+ * @param string[] $links Existing plugin links.
+ * @param string   $file  Plugin file.
+ * @return string[]
+ */
+function ct_forms_plugin_row_meta( array $links, string $file ): array {
+	if ( plugin_basename( __FILE__ ) !== $file ) {
+		return $links;
+	}
 
-    $support = admin_url( 'admin.php?page=ct-forms-support' );
+	$settings_url = admin_url( 'admin.php?page=ct-forms-settings' );
+	$support_url  = admin_url( 'admin.php?page=ct-forms-support' );
 
-    $links[] = '<a href="' . esc_url( $support ) . '">Support</a>';
-    $links[] = '<a href="' . esc_url( CT_FORMS_PLUGIN_PAGE_URL ) . '" target="_blank" rel="noopener">Plugin Page</a>';
-    $links[] = '<a href="' . esc_url( CT_FORMS_TIP_JAR_URL ) . '" target="_blank" rel="noopener">Tip Jar</a>';
+	$links[] = '<a href="' . esc_url( $settings_url ) . '">' . esc_html__( 'Settings', 'ct-forms' ) . '</a>';
+	$links[] = '<a href="' . esc_url( $support_url ) . '">' . esc_html__( 'Support', 'ct-forms' ) . '</a>';
+	$links[] = '<a href="' . esc_url( CT_FORMS_PLUGIN_PAGE_URL ) . '" target="_blank" rel="noopener">' . esc_html__( 'Plugin Page', 'ct-forms' ) . '</a>';
+	$links[] = '<a href="' . esc_url( CT_FORMS_TIP_JAR_URL ) . '" target="_blank" rel="noopener">' . esc_html__( 'Tip Jar', 'ct-forms' ) . '</a>';
 
-    return $links;
-}, 10, 2 );
+	return $links;
+}
+add_filter( 'plugin_row_meta', 'ct_forms_plugin_row_meta', 10, 2 );
 
 require_once CT_FORMS_PLUGIN_DIR . 'includes/class-ct-forms.php';
 
 register_activation_hook( __FILE__, array( 'CT_Forms', 'activate' ) );
 register_deactivation_hook( __FILE__, array( 'CT_Forms', 'deactivate' ) );
 
-add_action( 'plugins_loaded', function() {
-    CT_Forms::instance();
-} );
+/**
+ * Bootstrap.
+ *
+ * @return void
+ */
+function ct_forms_bootstrap(): void {
+	CT_Forms::instance();
+}
+add_action( 'plugins_loaded', 'ct_forms_bootstrap' );

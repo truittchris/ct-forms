@@ -1,4 +1,4 @@
-name: PHPCS (WordPress Coding Standards)
+name: PHPCS
 
 on:
   push:
@@ -7,43 +7,18 @@ on:
 jobs:
   phpcs:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Check out repo
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: "8.1"
-          tools: composer
+          php-version: "8.2"
+          tools: composer:v2
 
-      - name: Cache Composer downloads
-        uses: actions/cache@v4
-        with:
-          path: ~/.composer/cache
-          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.json') }}
-          restore-keys: |
-            ${{ runner.os }}-composer-
+      - name: Install dependencies
+        run: composer install --no-interaction --no-progress --prefer-dist
 
-      - name: Install PHPCS + WPCS
-        run: |
-          set -e
-          composer global require squizlabs/php_codesniffer wp-coding-standards/wpcs
-
-          # Make the global phpcs command available
-          echo "$HOME/.composer/vendor/bin" >> $GITHUB_PATH
-          echo "$HOME/.config/composer/vendor/bin" >> $GITHUB_PATH
-
-          # Register the WPCS standard with PHPCS
-          phpcs --config-set installed_paths "$(php -r 'echo rtrim(getenv("HOME"),"/")."/.composer/vendor/wp-coding-standards/wpcs";')"
-          phpcs -i
-
-      - name: Run PHPCS (WordPress standard)
-        run: |
-          # Adjust excludes as needed; this set avoids common non-source folders
-          phpcs -p \
-            --standard=WordPress \
-            --extensions=php \
-            --ignore=*/vendor/*,*/node_modules/*,*/dist/*,*/.github/* \
-            .
+      - name: PHPCS lint
+        run: composer lint
