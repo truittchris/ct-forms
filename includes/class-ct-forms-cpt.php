@@ -25,15 +25,15 @@ final class CT_Forms_CPT {
 	 */
 	private static function normalize_template_text( string $text ): string {
 		// Fix common newline corruption where \r\n becomes rnrn after JSON/slash handling.
-		$text = str_replace( array( "\\r\\n", "\\n", "\n", "\\r" ), "\n", $text );
-		$text = preg_replace( "/rnrn/i", "\n\n", $text );
-		$text = preg_replace( "/rn(\{|Reference:)/i", "\n$1", $text );
+		$text = str_replace( array( '\\r\\n', '\\n', "\n", '\\r' ), "\n", $text );
+		$text = preg_replace( '/rnrn/i', "\n\n", $text );
+		$text = preg_replace( '/rn(\{|Reference:)/i', "\n$1", $text );
 
 		// If any remaining literal 'rn' sequences exist, convert common double-newline patterns.
-		$text = preg_replace( "/rn\s*rn/i", "\n\n", $text );
+		$text = preg_replace( '/rn\s*rn/i', "\n\n", $text );
 
 		// Repair stripped-newline artifacts where "nn" appears after punctuation (e.g., ". nnIMPORTANT").
-		$text = preg_replace( "/(?<=[\}\]\.\)])\s*nn(?=[A-Z0-9])/i", "\n\n", $text );
+		$text = preg_replace( '/(?<=[\}\]\.\)])\s*nn(?=[A-Z0-9])/i', "\n\n", $text );
 
 		return (string) $text;
 	}

@@ -4,7 +4,7 @@ Tags: forms, contact form, file uploads, entries, notifications
 Requires at least: 6.0
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.0.51
+Stable tag: 1.0.52
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -40,6 +40,11 @@ Uploads are stored under wp-content/uploads/ct-forms/ (site-specific paths may v
 
 == Changelog ==
 
+= 1.0.52 =
+* Code style: address PHPCS baseline issues (file/class/method docblocks, tabs, guard formatting).
+* Uninstall: silence false-positive prepared SQL warning for internal table names and add schema-change ignore.
+* Blocks: WPCS file docblock and guard normalization.
+
 = 1.0.51 =
 * Version: bump and ensure version parity (plugin header, constants, readme).
 * Security: use WP_Filesystem for writing .htaccess on activation and for uninstall cleanup.
@@ -71,6 +76,9 @@ Uploads are stored under wp-content/uploads/ct-forms/ (site-specific paths may v
 * Packaging: align plugin version values, add WordPress readme, remove dev scripts from distribution zip.
 
 == Upgrade Notice ==
+
+= 1.0.52 =
+PHPCS/WPCS cleanup and uninstall query lint adjustments.
 
 = 1.0.51 =
 Version parity, filesystem hardening, and small i18n improvements.

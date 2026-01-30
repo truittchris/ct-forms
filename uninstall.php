@@ -34,7 +34,8 @@ $tables = array(
 foreach ( $tables as $table ) {
 	// Table names cannot be prepared; this is safe because table names are internal constants.
 	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
-	$wpdb->query( "DROP TABLE IF EXISTS {$table}" );
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+	$wpdb->query( "DROP TABLE IF EXISTS `{$table}`" );
 }
 
 // Delete plugin options/settings.
