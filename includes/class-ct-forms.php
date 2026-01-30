@@ -1,5 +1,7 @@
 <?php
-if ( ! defined( 'ABSPATH' ) ) { exit; }
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
 
 require_once CT_FORMS_PLUGIN_DIR . 'includes/class-ct-forms-db.php';
 require_once CT_FORMS_PLUGIN_DIR . 'includes/class-ct-forms-cpt.php';
