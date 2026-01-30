@@ -1,438 +1,365 @@
 <?php
-/**
- * Entries list table.
- *
- * @package CT_Forms
- */
-
-if ( ! defined( 'ABSPATH' ) ) {
-	exit;
-}
+if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 if ( ! class_exists( 'WP_List_Table' ) ) {
-	require_once ABSPATH . 'wp-admin/includes/class-wp-list-table.php';
+    require_once ABSPATH . 'wp-admin/includes/class-wp-list-table.php';
 }
 
-/**
- * Entries list table.
- *
- * @package CT_Forms
- */
 final class CT_Forms_Entries_Table extends WP_List_Table {
 
-	/**
-	 * Constructor.
-	 */
-	public function __construct() {
-		parent::__construct(
-			array(
-				'singular' => 'entry',
-				'plural'   => 'entries',
-				'ajax'     => false,
-			)
-		);
-	}
+    public function __construct() {
+        parent::__construct( array(
+            'singular' => 'entry',
+            'plural'   => 'entries',
+            'ajax'     => false,
+        ) );
+    }
 
-	/**
-	 * Get table columns.
-	 *
-	 * @return array
-	 */
-	public function get_columns() {
-		return array(
-			'cb'           => '<input type="checkbox" />',
-			'id'           => esc_html__( 'ID', 'ct-forms' ),
-			'form'         => esc_html__( 'Form', 'ct-forms' ),
-			'status'       => esc_html__( 'Status', 'ct-forms' ),
-			'submitted_at' => esc_html__( 'Submitted', 'ct-forms' ),
-			'page_url'     => esc_html__( 'Page', 'ct-forms' ),
-		);
-	}
+    public function get_columns() {
+        return array(
+            'cb' => '<input type="checkbox" />',
+            'id' => 'ID',
+            'form' => 'Form',
+            'status' => 'Status',
+            'submitted_at' => 'Submitted',
+            'page_url' => 'Page',
+        );
+    }
 
-	/**
-	 * Get sortable columns.
-	 *
-	 * @return array
-	 */
-	protected function get_sortable_columns() {
-		return array(
-			'id'           => array( 'id', true ),
-			'submitted_at' => array( 'submitted_at', true ),
-			'status'       => array( 'status', false ),
-		);
-	}
+    protected function column_cb( $item ) {
+        return sprintf( '<input type="checkbox" name="entry_ids[]" value="%d" />', (int) $item['id'] );
+    }
 
-	/**
-	 * Get bulk actions.
-	 *
-	 * @return array
-	 */
-	public function get_bulk_actions() {
-		$actions = array(
-			'mark_reviewed'  => esc_html__( 'Mark reviewed', 'ct-forms' ),
-			'mark_follow_up' => esc_html__( 'Mark follow-up', 'ct-forms' ),
-			'mark_spam'      => esc_html__( 'Mark spam', 'ct-forms' ),
-			'archive'        => esc_html__( 'Archive', 'ct-forms' ),
-		);
+    protected function column_id( $item ) {
+        $url = admin_url( 'admin.php?page=ct-forms-entries&entry_id=' . (int) $item['id'] );
+        return '<a href="' . esc_url( $url ) . '">#' . (int) $item['id'] . '</a>';
+    }
 
-		if ( current_user_can( 'ct_forms_export_entries' ) ) {
-			$actions['export_csv'] = esc_html__( 'Export CSV', 'ct-forms' );
-		}
+    protected function column_form( $item ) {
+        $p = get_post( (int) $item['form_id'] );
+        $name = $p ? $p->post_title : '(deleted)';
+        return esc_html( $name );
+    }
 
-		return $actions;
-	}
+    protected function column_page_url( $item ) {
+        if ( empty( $item['page_url'] ) ) { return ''; }
+        return '<a href="' . esc_url( $item['page_url'] ) . '" target="_blank" rel="noreferrer">Open</a>';
+    }
+    protected function column_status( $item ) {
+        $status = isset( $item['status'] ) ? (string) $item['status'] : '';
+        if ( $status === '' ) { return ''; }
 
-	/**
-	 * Render the checkbox column.
-	 *
-	 * @param array $item Row data.
-	 * @return string
-	 */
-	protected function column_cb( $item ) {
-		$id = isset( $item['id'] ) ? absint( $item['id'] ) : 0;
-		return sprintf( '<input type="checkbox" name="entry_ids[]" value="%d" />', $id );
-	}
+        $labels = array(
+            'new'       => 'New',
+            'reviewed'  => 'Reviewed',
+            'follow_up' => 'Follow-up',
+            'spam'      => 'Spam',
+            'archived'  => 'Archived',
+        );
 
-	/**
-	 * Render the ID column.
-	 *
-	 * @param array $item Row data.
-	 * @return string
-	 */
-	protected function column_id( $item ) {
-		$id  = isset( $item['id'] ) ? absint( $item['id'] ) : 0;
-		$url = admin_url( 'admin.php?page=ct-forms-entries&entry_id=' . $id );
+        $text = isset( $labels[ $status ] ) ? $labels[ $status ] : ucwords( str_replace( array( '-', '_' ), ' ', $status ) );
 
-		return '<a href="' . esc_url( $url ) . '">#' . (int) $id . '</a>';
-	}
+        return '<span class="truitt-entry-status truitt-entry-status--' . esc_attr( sanitize_key( $status ) ) . '">' . esc_html( $text ) . '</span>';
+    }
 
-	/**
-	 * Render the Form column.
-	 *
-	 * @param array $item Row data.
-	 * @return string
-	 */
-	protected function column_form( $item ) {
-		$form_id = isset( $item['form_id'] ) ? absint( $item['form_id'] ) : 0;
-		$post    = ( $form_id > 0 ) ? get_post( $form_id ) : null;
-		$name    = $post ? $post->post_title : __( '(deleted)', 'ct-forms' );
+    protected function column_submitted_at( $item ) {
+        $raw = isset( $item['submitted_at'] ) ? (string) $item['submitted_at'] : '';
 
-		return esc_html( $name );
-	}
+        if ( $raw === '' || $raw === '0000-00-00 00:00:00' ) {
+            return '<span class="truitt-submitted truitt-submitted--empty"><span class="truitt-submitted__main">–</span><span class="truitt-submitted__sub">Not recorded</span></span>';
+        }
 
-	/**
-	 * Render the Page column.
-	 *
-	 * @param array $item Row data.
-	 * @return string
-	 */
-	protected function column_page_url( $item ) {
-		$url = isset( $item['page_url'] ) ? (string) $item['page_url'] : '';
-		if ( '' === $url ) {
-			return '';
-		}
+        // Treat legacy invalid negative/BC dates as missing.
+        if ( preg_match( '/^\s*-/', $raw ) ) {
+            return '<span class="truitt-submitted truitt-submitted--empty"><span class="truitt-submitted__main">–</span><span class="truitt-submitted__sub">Not recorded</span></span>';
+        }
 
-		return '<a href="' . esc_url( $url ) . '" target="_blank" rel="noreferrer">' . esc_html__( 'Open', 'ct-forms' ) . '</a>';
-	}
+        $ts = strtotime( $raw );
+        if ( ! $ts || $ts < 0 ) {
+            return '<span class="truitt-submitted truitt-submitted--empty"><span class="truitt-submitted__main">–</span><span class="truitt-submitted__sub">Not recorded</span></span>';
+        }
 
-	/**
-	 * Render the Status column.
-	 *
-	 * @param array $item Row data.
-	 * @return string
-	 */
-	protected function column_status( $item ) {
-		$status = isset( $item['status'] ) ? (string) $item['status'] : '';
-		if ( '' === $status ) {
-			return '';
-		}
+        $date_fmt = get_option( 'date_format' );
+        $time_fmt = get_option( 'time_format' );
 
-		$labels = array(
-			'new'       => __( 'New', 'ct-forms' ),
-			'reviewed'  => __( 'Reviewed', 'ct-forms' ),
-			'follow_up' => __( 'Follow-up', 'ct-forms' ),
-			'spam'      => __( 'Spam', 'ct-forms' ),
-			'archived'  => __( 'Archived', 'ct-forms' ),
-		);
+        $main = wp_date( $date_fmt . ' \a\t ' . $time_fmt, $ts );
 
-		$text = isset( $labels[ $status ] ) ? $labels[ $status ] : ucwords( str_replace( array( '-', '_' ), ' ', $status ) );
+        $now = current_time( 'timestamp' );
+        $sub = ( $ts <= $now ) ? ( human_time_diff( $ts, $now ) . ' ago' ) : ( 'in ' . human_time_diff( $now, $ts ) );
 
-		return '<span class="truitt-entry-status truitt-entry-status--' . esc_attr( sanitize_key( $status ) ) . '">' . esc_html( $text ) . '</span>';
-	}
+        return '<span class="truitt-submitted"><span class="truitt-submitted__main">' . esc_html( $main ) . '</span><span class="truitt-submitted__sub">' . esc_html( $sub ) . '</span></span>';
+    }
 
-	/**
-	 * Render the Submitted column.
-	 *
-	 * @param array $item Row data.
-	 * @return string
-	 */
-	protected function column_submitted_at( $item ) {
-		$raw = isset( $item['submitted_at'] ) ? (string) $item['submitted_at'] : '';
+    protected function get_sortable_columns() {
+        return array(
+            'id' => array( 'id', true ),
+            'submitted_at' => array( 'submitted_at', true ),
+            'status' => array( 'status', false ),
+        );
+    }
 
-		if ( '' === $raw || '0000-00-00 00:00:00' === $raw ) {
-			return $this->render_not_recorded();
-		}
+    public function get_bulk_actions() {
+        $actions = array(
+            'mark_reviewed' => 'Mark reviewed',
+            'mark_follow_up' => 'Mark follow-up',
+            'mark_spam' => 'Mark spam',
+            'archive' => 'Archive',
+        );
+        if ( current_user_can( 'ct_forms_export_entries' ) ) {
+            $actions['export_csv'] = 'Export CSV';
+        }
+        return $actions;
+    }
 
-		// Treat legacy invalid negative/BC dates as missing.
-		if ( preg_match( '/^\s*-/', $raw ) ) {
-			return $this->render_not_recorded();
-		}
+    public function process_bulk_action() {
+        if ( empty( $_POST['entry_ids'] ) || ! is_array( $_POST['entry_ids'] ) ) { return; }
 
-		$ts = strtotime( $raw );
-		if ( ! $ts || $ts < 0 ) {
-			return $this->render_not_recorded();
-		}
+        $ids = array_map( 'intval', $_POST['entry_ids'] );
+        $action = $this->current_action();
 
-		$date_fmt = (string) get_option( 'date_format' );
-		$time_fmt = (string) get_option( 'time_format' );
-		$main     = wp_date( $date_fmt . ' \a\t ' . $time_fmt, $ts );
+        if ( in_array( $action, array( 'mark_reviewed', 'mark_follow_up', 'mark_spam', 'archive' ), true ) ) {
+            $map = array(
+                'mark_reviewed' => 'reviewed',
+                'mark_follow_up' => 'follow_up',
+                'mark_spam' => 'spam',
+                'archive' => 'archived',
+            );
+            $status = $map[ $action ];
+            foreach ( $ids as $id ) {
+                CT_Forms_DB::update_entry_status( $id, $status );
+            }
+        }
 
-		$now = current_time( 'timestamp' );
-		if ( $ts <= $now ) {
-			$sub = human_time_diff( $ts, $now ) . ' ' . __( 'ago', 'ct-forms' );
-		} else {
-			$sub = __( 'in', 'ct-forms' ) . ' ' . human_time_diff( $now, $ts );
-		}
+        if ( 'export_csv' === $action && current_user_can( 'ct_forms_export_entries' ) ) {
+            $this->export_csv( $ids );
+        }
+    }
 
-		return '<span class="truitt-submitted"><span class="truitt-submitted__main">' . esc_html( $main ) . '</span><span class="truitt-submitted__sub">' . esc_html( $sub ) . '</span></span>';
-	}
+    private function export_csv( $ids ) {
+        nocache_headers();
+        header( 'Content-Type: text/csv; charset=utf-8' );
+        header( 'Content-Disposition: attachment; filename=ct-forms-entries-' . date( 'Y-m-d' ) . '.csv' );
 
-	/**
-	 * Prepare list table items.
-	 */
-	public function prepare_items() {
-		$this->process_bulk_action();
+        $out = fopen( 'php://output', 'w' );
+        fputcsv( $out, array( 'entry_id', 'form_id', 'status', 'submitted_at', 'page_url', 'field', 'value' ) );
 
-		global $wpdb;
-		$table = CT_Forms_DB::entries_table();
+        foreach ( $ids as $id ) {
+            $entry = CT_Forms_DB::get_entry( $id );
+            if ( ! $entry ) { continue; }
+            foreach ( (array) $entry['data'] as $k => $v ) {
+                if ( is_array( $v ) ) { $v = implode( ', ', $v ); }
+                fputcsv( $out, array(
+                    $entry['id'],
+                    $entry['form_id'],
+                    $entry['status'],
+                    $entry['submitted_at'],
+                    $entry['page_url'],
+                    $k,
+                    $v,
+                ) );
+            }
+        }
 
-		$cols = CT_Forms_DB::entries_columns();
-		$pk   = CT_Forms_DB::entries_pk_column();
+        fclose( $out );
+        exit;
+    }
 
-		$per_page = 20;
-		$paged    = 1;
-		if ( isset( $_GET['paged'] ) ) {
-			$paged = max( 1, absint( wp_unslash( $_GET['paged'] ) ) );
-		}
-		$offset = ( $paged - 1 ) * $per_page;
+        public function prepare_items() {
+        $this->process_bulk_action();
 
-		$where = 'WHERE 1=1';
-		$args  = array();
+        global $wpdb;
+        $table = CT_Forms_DB::entries_table();
 
-		$form_id_raw = isset( $_GET['form_id'] ) ? (string) wp_unslash( $_GET['form_id'] ) : '';
-		if ( '' !== $form_id_raw ) {
-			$where .= ' AND form_id = %d';
-			$args[] = absint( $form_id_raw );
-		}
+        $cols = CT_Forms_DB::entries_columns();
+        $pk   = CT_Forms_DB::entries_pk_column();
 
-		$search_raw = isset( $_GET['s'] ) ? (string) wp_unslash( $_GET['s'] ) : '';
-		if ( '' !== $search_raw ) {
-			$search = sanitize_text_field( $search_raw );
-			$like   = '%' . $wpdb->esc_like( $search ) . '%';
-			$where .= ' AND (data LIKE %s OR page_url LIKE %s)';
-			$args[] = $like;
-			$args[] = $like;
-		}
+        $per_page = 20;
+        $paged = isset( $_GET['paged'] ) ? max( 1, (int) $_GET['paged'] ) : 1;
+        $offset = ( $paged - 1 ) * $per_page;
 
-		$orderby = in_array( 'submitted_at', $cols, true ) ? 'submitted_at' : $pk;
-		$order   = 'DESC';
+        $where = 'WHERE 1=1';
+        $args  = array();
 
-		$orderby_raw = isset( $_GET['orderby'] ) ? (string) wp_unslash( $_GET['orderby'] ) : '';
-		if ( '' !== $orderby_raw ) {
-			$o = sanitize_key( $orderby_raw );
-			if ( in_array( $o, array( 'id', 'submitted_at', 'status' ), true ) ) {
-				$candidate = ( 'id' === $o ) ? $pk : $o;
-				if ( in_array( $candidate, $cols, true ) ) {
-					$orderby = $candidate;
-				}
-			}
-		}
+        if ( ! empty( $_GET['form_id'] ) ) {
+            $where .= ' AND form_id = %d';
+            $args[] = (int) $_GET['form_id'];
+        }
 
-		$order_raw = isset( $_GET['order'] ) ? (string) wp_unslash( $_GET['order'] ) : '';
-		if ( '' !== $order_raw ) {
-			$ord = strtoupper( sanitize_key( $order_raw ) );
-			if ( in_array( $ord, array( 'ASC', 'DESC' ), true ) ) {
-				$order = $ord;
-			}
-		}
+        if ( ! empty( $_GET['s'] ) ) {
+            $s = '%' . $wpdb->esc_like( (string) $_GET['s'] ) . '%';
+            $where .= ' AND (data LIKE %s OR page_url LIKE %s)';
+            $args[] = $s;
+            $args[] = $s;
+        }
 
-		// Total items.
-		$sql_total = "SELECT COUNT(*) FROM {$table} {$where}";
-		if ( ! empty( $args ) ) {
-			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
-			$total_items = (int) $wpdb->get_var( $wpdb->prepare( $sql_total, $args ) );
-		} else {
-			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
-			$total_items = (int) $wpdb->get_var( $sql_total );
-		}
+        $orderby = in_array( 'submitted_at', $cols, true ) ? 'submitted_at' : $pk;
+        $order   = 'DESC';
 
-		// Page items. Select * (some installs may not have all expected columns yet).
-		$sql = "SELECT * FROM {$table}
-				{$where}
-				ORDER BY {$orderby} {$order}
-				LIMIT %d OFFSET %d";
+        if ( ! empty( $_GET['orderby'] ) ) {
+            $o = sanitize_key( (string) $_GET['orderby'] );
+            if ( in_array( $o, array( 'id', 'submitted_at', 'status' ), true ) ) {
+                // Map 'id' to actual PK if needed, and ensure the column exists.
+                $candidate = ( 'id' === $o ) ? $pk : $o;
+                if ( in_array( $candidate, $cols, true ) ) {
+                    $orderby = $candidate;
+                }
+            }
+        }
+        if ( ! empty( $_GET['order'] ) ) {
+            $ord = strtoupper( sanitize_key( (string) $_GET['order'] ) );
+            if ( in_array( $ord, array( 'ASC', 'DESC' ), true ) ) {
+                $order = $ord;
+            }
+        }
 
-		$items = null;
-		if ( ! empty( $args ) ) {
-			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
-			$items = $wpdb->get_results(
-				$wpdb->prepare( $sql, array_merge( $args, array( $per_page, $offset ) ) ),
-				ARRAY_A
-			);
-		} else {
-			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
-			$items = $wpdb->get_results(
-				$wpdb->prepare( $sql, $per_page, $offset ),
-				ARRAY_A
-			);
-		}
+        // Total
+        $sql_total = "SELECT COUNT(*) FROM {$table} {$where}";
+        if ( ! empty( $args ) ) {
+            $total_items = (int) $wpdb->get_var( $wpdb->prepare( $sql_total, $args ) );
+        } else {
+            $total_items = (int) $wpdb->get_var( $sql_total );
+        }
 
-		// If ORDER BY column doesn't exist (older schema), fall back to ordering by PK.
-		if ( empty( $items ) && ! empty( $wpdb->last_error ) ) {
-			$wpdb->last_error = '';
-			$sql_fb           = "SELECT * FROM {$table}
-						{$where}
-						ORDER BY {$pk} {$order}
-						LIMIT %d OFFSET %d";
-			if ( ! empty( $args ) ) {
-				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
-				$items = $wpdb->get_results(
-					$wpdb->prepare( $sql_fb, array_merge( $args, array( $per_page, $offset ) ) ),
-					ARRAY_A
-				);
-			} else {
-				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
-				$items = $wpdb->get_results(
-					$wpdb->prepare( $sql_fb, $per_page, $offset ),
-					ARRAY_A
-				);
-			}
-		}
+        // Page items
+        // Schema-robust query: select * (some installs may not have all expected columns yet).
+        $sql = "SELECT * FROM {$table}
+                {$where}
+                ORDER BY {$orderby} {$order}
+                LIMIT %d OFFSET %d";
 
-		$items = is_array( $items ) ? $items : array();
+        $items = null;
 
-		// Normalize row keys so list table columns render consistently across schema revisions.
-		$normalized = array();
-		foreach ( $items as $row ) {
-			$row = CT_Forms_DB::normalize_entry_row( $row );
-			$row = is_array( $row ) ? $row : array();
+        if ( ! empty( $args ) ) {
+            $items = $wpdb->get_results(
+                $wpdb->prepare( $sql, array_merge( $args, array( $per_page, $offset ) ) ),
+                ARRAY_A
+            );
+        } else {
+            $items = $wpdb->get_results(
+                $wpdb->prepare( $sql, $per_page, $offset ),
+                ARRAY_A
+            );
+        }
 
-			$id      = isset( $row['id'] ) ? absint( $row['id'] ) : ( isset( $row['entry_id'] ) ? absint( $row['entry_id'] ) : 0 );
-			$form_id = isset( $row['form_id'] ) ? absint( $row['form_id'] ) : ( isset( $row['form'] ) ? absint( $row['form'] ) : 0 );
+        // If ORDER BY column doesn't exist (older schema), fall back to ordering by id.
+        if ( empty( $items ) && ! empty( $wpdb->last_error ) ) {
+            $wpdb->last_error = '';
+            $orderby_fallback = $pk;
+            $sql_fb = "SELECT * FROM {$table}
+                       {$where}
+                       ORDER BY {$orderby_fallback} {$order}
+                       LIMIT %d OFFSET %d";
+            if ( ! empty( $args ) ) {
+                $items = $wpdb->get_results(
+                    $wpdb->prepare( $sql_fb, array_merge( $args, array( $per_page, $offset ) ) ),
+                    ARRAY_A
+                );
+            } else {
+                $items = $wpdb->get_results(
+                    $wpdb->prepare( $sql_fb, $per_page, $offset ),
+                    ARRAY_A
+                );
+            }
+        }
 
-			$status       = isset( $row['status'] ) ? (string) $row['status'] : ( isset( $row['state'] ) ? (string) $row['state'] : '' );
-			$submitted_at = isset( $row['submitted_at'] ) ? (string) $row['submitted_at'] : ( isset( $row['created_at'] ) ? (string) $row['created_at'] : '' );
-			$page_url     = isset( $row['page_url'] ) ? (string) $row['page_url'] : ( isset( $row['source_url'] ) ? (string) $row['source_url'] : '' );
+        
+        // Second-level fallbacks: if schema detection failed (e.g., SHOW COLUMNS blocked), try common PKs and finally no ORDER BY.
+        if ( empty( $items ) && ! empty( $wpdb->last_error ) ) {
+            $last_err = $wpdb->last_error;
+            $wpdb->last_error = '';
 
-			$normalized[] = array(
-				'id'           => $id,
-				'form_id'      => $form_id,
-				'status'       => $status,
-				'submitted_at' => $submitted_at,
-				'page_url'     => $page_url,
-			);
-		}
+            // Try ordering by entry_id if present.
+            $sql_try = "SELECT * FROM {$table}
+                        {$where}
+                        ORDER BY entry_id {$order}
+                        LIMIT %d OFFSET %d";
+            if ( ! empty( $args ) ) {
+                $items = $wpdb->get_results(
+                    $wpdb->prepare( $sql_try, array_merge( $args, array( $per_page, $offset ) ) ),
+                    ARRAY_A
+                );
+            } else {
+                $items = $wpdb->get_results(
+                    $wpdb->prepare( $sql_try, $per_page, $offset ),
+                    ARRAY_A
+                );
+            }
 
-		$this->items = $normalized;
+            // If still failing, try ordering by id.
+            if ( empty( $items ) && ! empty( $wpdb->last_error ) ) {
+                $wpdb->last_error = '';
+                $sql_try2 = "SELECT * FROM {$table}
+                             {$where}
+                             ORDER BY id {$order}
+                             LIMIT %d OFFSET %d";
+                if ( ! empty( $args ) ) {
+                    $items = $wpdb->get_results(
+                        $wpdb->prepare( $sql_try2, array_merge( $args, array( $per_page, $offset ) ) ),
+                        ARRAY_A
+                    );
+                } else {
+                    $items = $wpdb->get_results(
+                        $wpdb->prepare( $sql_try2, $per_page, $offset ),
+                        ARRAY_A
+                    );
+                }
+            }
 
-		$this->set_pagination_args(
-			array(
-				'total_items' => $total_items,
-				'per_page'    => $per_page,
-				'total_pages' => (int) ceil( $total_items / $per_page ),
-			)
-		);
-	}
+            // Final fallback: no ORDER BY.
+            if ( empty( $items ) && ! empty( $wpdb->last_error ) ) {
+                $wpdb->last_error = '';
+                $sql_try3 = "SELECT * FROM {$table}
+                             {$where}
+                             LIMIT %d OFFSET %d";
+                if ( ! empty( $args ) ) {
+                    $items = $wpdb->get_results(
+                        $wpdb->prepare( $sql_try3, array_merge( $args, array( $per_page, $offset ) ) ),
+                        ARRAY_A
+                    );
+                } else {
+                    $items = $wpdb->get_results(
+                        $wpdb->prepare( $sql_try3, $per_page, $offset ),
+                        ARRAY_A
+                    );
+                }
+            }
 
-	/**
-	 * Process bulk actions.
-	 */
-	public function process_bulk_action() {
-		$raw_ids = isset( $_POST['entry_ids'] ) ? (array) wp_unslash( $_POST['entry_ids'] ) : array();
-		$ids     = array_filter( array_map( 'absint', $raw_ids ) );
+            // Restore last error if we ended up with nothing.
+            if ( empty( $items ) && empty( $wpdb->last_error ) ) {
+                $wpdb->last_error = $last_err;
+            }
+        }
 
-		if ( empty( $ids ) ) {
-			return;
-		}
+$items = is_array( $items ) ? $items : array();
 
-		// Verify bulk nonce if present.
-		if ( isset( $_POST['_wpnonce'] ) ) {
-			check_admin_referer( 'bulk-' . $this->_args['plural'] );
-		}
+        // Normalize row keys so list table columns render consistently across schema revisions.
+        $normalized = array();
+        foreach ( $items as $row ) {
+            $row = CT_Forms_DB::normalize_entry_row( $row );
+            $row = is_array( $row ) ? $row : array();
 
-		$action = $this->current_action();
-		if ( in_array( $action, array( 'mark_reviewed', 'mark_follow_up', 'mark_spam', 'archive' ), true ) ) {
-			$map = array(
-				'mark_reviewed'  => 'reviewed',
-				'mark_follow_up' => 'follow_up',
-				'mark_spam'      => 'spam',
-				'archive'        => 'archived',
-			);
+            $id = isset( $row['id'] ) ? (int) $row['id'] : ( isset( $row['entry_id'] ) ? (int) $row['entry_id'] : 0 );
+            $form_id = isset( $row['form_id'] ) ? (int) $row['form_id'] : ( isset( $row['form'] ) ? (int) $row['form'] : 0 );
 
-			$status = $map[ $action ];
-			foreach ( $ids as $id ) {
-				CT_Forms_DB::update_entry_status( $id, $status );
-			}
-		}
+            $status = isset( $row['status'] ) ? (string) $row['status'] : ( isset( $row['state'] ) ? (string) $row['state'] : '' );
+            $submitted_at = isset( $row['submitted_at'] ) ? (string) $row['submitted_at'] : ( isset( $row['created_at'] ) ? (string) $row['created_at'] : '' );
+            $page_url = isset( $row['page_url'] ) ? (string) $row['page_url'] : ( isset( $row['source_url'] ) ? (string) $row['source_url'] : '' );
 
-		if ( 'export_csv' === $action && current_user_can( 'ct_forms_export_entries' ) ) {
-			$this->export_csv( $ids );
-		}
-	}
+            $normalized[] = array(
+                'id' => $id,
+                'form_id' => $form_id,
+                'status' => $status,
+                'submitted_at' => $submitted_at,
+                'page_url' => $page_url,
+            );
+        }
 
-	/**
-	 * Export selected entries as CSV.
-	 *
-	 * @param int[] $ids Entry IDs.
-	 */
-	private function export_csv( array $ids ) {
-		nocache_headers();
-		header( 'Content-Type: text/csv; charset=utf-8' );
-		header( 'Content-Disposition: attachment; filename=ct-forms-entries-' . gmdate( 'Y-m-d' ) . '.csv' );
+        $this->items = $normalized;
 
-		$out = fopen( 'php://output', 'w' );
-		if ( ! $out ) {
-			wp_die( esc_html__( 'Unable to open export stream.', 'ct-forms' ) );
-		}
-
-		fputcsv( $out, array( 'entry_id', 'form_id', 'status', 'submitted_at', 'page_url', 'field', 'value' ) );
-
-		foreach ( $ids as $id ) {
-			$entry = CT_Forms_DB::get_entry( $id );
-			if ( ! $entry ) {
-				continue;
-			}
-
-			foreach ( (array) $entry['data'] as $key => $value ) {
-				if ( is_array( $value ) ) {
-					$value = implode( ', ', $value );
-				}
-
-				fputcsv(
-					$out,
-					array(
-						$entry['id'],
-						$entry['form_id'],
-						$entry['status'],
-						$entry['submitted_at'],
-						$entry['page_url'],
-						$key,
-						$value,
-					)
-				);
-			}
-		}
-
-		fclose( $out );
-		exit;
-	}
-
-	/**
-	 * Render the "not recorded" timestamp label.
-	 *
-	 * @return string
-	 */
-	private function render_not_recorded() {
-		return '<span class="truitt-submitted truitt-submitted--empty"><span class="truitt-submitted__main">–</span><span class="truitt-submitted__sub">' . esc_html__( 'Not recorded', 'ct-forms' ) . '</span></span>';
-	}
+        $this->set_pagination_args( array(
+            'total_items' => $total_items,
+            'per_page'    => $per_page,
+            'total_pages' => (int) ceil( $total_items / $per_page ),
+        ) );
+    }
 }

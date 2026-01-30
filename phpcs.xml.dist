@@ -17,5 +17,19 @@
 
 	<rule ref="WordPress"/>
 
+	<!-- If you use custom capabilities, declare them so the sniff stops warning. -->
+	<rule ref="WordPress.WP.Capabilities.Unknown">
+		<properties>
+			<property
+				name="custom_capabilities"
+				type="array"
+				value="ct_forms_manage,ct_forms_view_entries,ct_forms_export_entries"
+			/>
+		</properties>
+	</rule>
+
+	<!-- Used by some i18n sniffs and helps avoid false positives. -->
+	<config name="text_domain" value="ct-forms"/>
+
 	<config name="testVersion" value="7.4-"/>
 </ruleset>
