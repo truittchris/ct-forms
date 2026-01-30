@@ -26,9 +26,18 @@ final class CT_Forms_Admin {
 		$value = is_string( $value ) ? $value : '';
 
 		// Convert escaped sequences (e.g., "\\r\\n") to real LF newlines for storage.
-		$value = str_replace( array( "\r\n", "\n", "
-", "\r" ), "
-", $value );
+		$value = str_replace(
+			array(
+				"\r\n",
+				"\n",
+				'
+',
+				"\r",
+			),
+			'
+',
+			$value
+		);
 
 		// Normalize actual CRLF/CR to LF.
 		$value = preg_replace( "/\r\n|\r/", "\n", $value );
@@ -61,35 +70,35 @@ final class CT_Forms_Admin {
 		return $value;
 	}
 
-/**
- * format_submitted_cell_html method.
- *
- * @param mixed $submitted_raw Parameter.
- * @return mixed
- */
-private static function format_submitted_cell_html( $submitted_raw ) {
-	if ( empty( $submitted_raw ) || $submitted_raw === '0000-00-00 00:00:00' ) {
-		return '<span class="truitt-submitted truitt-submitted--empty"><span class="truitt-submitted__main">–</span><span class="truitt-submitted__sub">Not recorded</span></span>';
+	/**
+	 * format_submitted_cell_html method.
+	 *
+	 * @param mixed $submitted_raw Parameter.
+	 * @return mixed
+	 */
+	private static function format_submitted_cell_html( $submitted_raw ) {
+		if ( empty( $submitted_raw ) || $submitted_raw === '0000-00-00 00:00:00' ) {
+			return '<span class="truitt-submitted truitt-submitted--empty"><span class="truitt-submitted__main">–</span><span class="truitt-submitted__sub">Not recorded</span></span>';
+		}
+
+		$ts = strtotime( (string) $submitted_raw );
+		if ( $ts === false || $ts <= 0 ) {
+			return '<span class="truitt-submitted truitt-submitted--empty"><span class="truitt-submitted__main">–</span><span class="truitt-submitted__sub">Not recorded</span></span>';
+		}
+
+		// Treat clearly invalid historic values (e.g., -0001-11-30...) as missing.
+		if ( $ts < 0 ) {
+			return '<span class="truitt-submitted truitt-submitted--empty"><span class="truitt-submitted__main">–</span><span class="truitt-submitted__sub">Not recorded</span></span>';
+		}
+
+		$date_fmt = get_option( 'date_format' );
+		$time_fmt = get_option( 'time_format' );
+
+		$main = wp_date( $date_fmt . ' \a\t ' . $time_fmt, $ts );
+		$ago  = human_time_diff( $ts, current_time( 'timestamp' ) ) . ' ago';
+
+		return '<span class="truitt-submitted"><span class="truitt-submitted__main">' . esc_html( $main ) . '</span><span class="truitt-submitted__sub">' . esc_html( $ago ) . '</span></span>';
 	}
-
-	$ts = strtotime( (string) $submitted_raw );
-	if ( $ts === false || $ts <= 0 ) {
-		return '<span class="truitt-submitted truitt-submitted--empty"><span class="truitt-submitted__main">–</span><span class="truitt-submitted__sub">Not recorded</span></span>';
-	}
-
-	// Treat clearly invalid historic values (e.g., -0001-11-30...) as missing.
-	if ( $ts < 0 ) {
-		return '<span class="truitt-submitted truitt-submitted--empty"><span class="truitt-submitted__main">–</span><span class="truitt-submitted__sub">Not recorded</span></span>';
-	}
-
-	$date_fmt = get_option( 'date_format' );
-	$time_fmt = get_option( 'time_format' );
-
-	$main = wp_date( $date_fmt . ' \a\t ' . $time_fmt, $ts );
-	$ago  = human_time_diff( $ts, current_time( 'timestamp' ) ) . ' ago';
-
-	return '<span class="truitt-submitted"><span class="truitt-submitted__main">' . esc_html( $main ) . '</span><span class="truitt-submitted__sub">' . esc_html( $ago ) . '</span></span>';
-}
 
 	/**
 	 * get_status_label method.
@@ -177,10 +186,16 @@ private static function format_submitted_cell_html( $submitted_raw ) {
 			$status = $status_map[ $action ];
 			foreach ( $ids as $id ) {
 				if ( CT_Forms_DB::update_entry_status( $id, $status ) ) {
-					$count++;
+					++$count;
 				}
 			}
-			$redirect = add_query_arg( array( 'ct_forms_bulk' => $action, 'ct_forms_bulk_count' => $count ), $redirect );
+			$redirect = add_query_arg(
+				array(
+					'ct_forms_bulk'       => $action,
+					'ct_forms_bulk_count' => $count,
+				),
+				$redirect
+			);
 			wp_safe_redirect( $redirect );
 			exit;
 		}
@@ -188,10 +203,16 @@ private static function format_submitted_cell_html( $submitted_raw ) {
 		if ( 'delete' === $action ) {
 			foreach ( $ids as $id ) {
 				if ( CT_Forms_Submissions::delete_entry_and_files( $id ) ) {
-					$count++;
+					++$count;
 				}
 			}
-			$redirect = add_query_arg( array( 'ct_forms_bulk' => 'delete', 'ct_forms_bulk_count' => $count ), $redirect );
+			$redirect = add_query_arg(
+				array(
+					'ct_forms_bulk'       => 'delete',
+					'ct_forms_bulk_count' => $count,
+				),
+				$redirect
+			);
 			wp_safe_redirect( $redirect );
 			exit;
 		}
@@ -204,19 +225,20 @@ private static function format_submitted_cell_html( $submitted_raw ) {
 				}
 
 				$form_settings = CT_Forms_CPT::get_form_settings( (int) $entry['form_id'] );
-				$post = get_post( (int) $entry['form_id'] );
-				$form_name = $post ? $post->post_title : 'Form';
+				$post          = get_post( (int) $entry['form_id'] );
+				$form_name     = $post ? $post->post_title : 'Form';
 
-				$tokens = array(
+				$tokens     = array(
 					'{form_name}'    => $form_name,
 					'{entry_id}'     => (string) $id,
 					'{submitted_at}' => isset( $entry['submitted_at'] ) ? (string) $entry['submitted_at'] : '',
 				);
 				$all_fields = '';
-				$data = isset( $entry['data'] ) && is_array( $entry['data'] ) ? $entry['data'] : array();
+				$data       = isset( $entry['data'] ) && is_array( $entry['data'] ) ? $entry['data'] : array();
 				foreach ( (array) $data as $k => $v ) {
-					if ( is_array( $v ) ) { $v = implode( ', ', $v ); }
-					$all_fields .= $k . ': ' . $v . "\n";
+					if ( is_array( $v ) ) {
+						$v = implode( ', ', $v ); }
+					$all_fields                    .= $k . ': ' . $v . "\n";
 					$tokens[ '{field:' . $k . '}' ] = (string) $v;
 				}
 				$tokens['{all_fields}'] = trim( $all_fields );
@@ -238,10 +260,10 @@ private static function format_submitted_cell_html( $submitted_raw ) {
 
 				$sent = wp_mail( (string) ( $form_settings['to_email'] ?? '' ), $subject, $body, $headers );
 				if ( $sent ) {
-					$count++;
+					++$count;
 				}
 
-				$mail_log = isset( $entry['mail_log'] ) && is_array( $entry['mail_log'] ) ? $entry['mail_log'] : array();
+				$mail_log                      = isset( $entry['mail_log'] ) && is_array( $entry['mail_log'] ) ? $entry['mail_log'] : array();
 				$mail_log['bulk_resend_admin'] = array(
 					'sent_at' => current_time( 'mysql' ),
 					'sent'    => (bool) $sent,
@@ -249,7 +271,13 @@ private static function format_submitted_cell_html( $submitted_raw ) {
 				CT_Forms_DB::update_entry_mail_log( $id, $mail_log );
 			}
 
-			$redirect = add_query_arg( array( 'ct_forms_bulk' => 'resend_admin', 'ct_forms_bulk_count' => $count ), $redirect );
+			$redirect = add_query_arg(
+				array(
+					'ct_forms_bulk'       => 'resend_admin',
+					'ct_forms_bulk_count' => $count,
+				),
+				$redirect
+			);
 			wp_safe_redirect( $redirect );
 			exit;
 		}
@@ -275,7 +303,7 @@ private static function format_submitted_cell_html( $submitted_raw ) {
 		check_admin_referer( 'ct_forms_update_entry_status_' . $entry_id );
 
 		$allowed_statuses = array( 'new', 'reviewed', 'follow_up', 'spam', 'archived' );
-		$status = isset( $_POST['status'] ) ? sanitize_key( (string) $_POST['status'] ) : 'new';
+		$status           = isset( $_POST['status'] ) ? sanitize_key( (string) $_POST['status'] ) : 'new';
 		if ( ! in_array( $status, $allowed_statuses, true ) ) {
 			$status = 'new';
 		}
@@ -370,7 +398,8 @@ private static function format_submitted_cell_html( $submitted_raw ) {
 	 * @return mixed
 	 */
 	public static function assets( $hook ) {
-		if ( false === strpos( $hook, 'ct-forms' ) ) { return; }
+		if ( false === strpos( $hook, 'ct-forms' ) ) {
+			return; }
 
 		$settings = self::get_settings();
 
@@ -385,11 +414,15 @@ private static function format_submitted_cell_html( $submitted_raw ) {
 		wp_enqueue_script( 'jquery-ui-sortable' );
 		wp_enqueue_script( 'ct-forms-admin', CT_FORMS_PLUGIN_URL . 'assets/js/admin.js', array( 'jquery', 'jquery-ui-sortable' ), CT_FORMS_VERSION, true );
 
-		wp_localize_script( 'ct-forms-admin', 'CTFormsAdmin', array(
-			'nonce' => wp_create_nonce( 'ct_forms_admin' ),
-			'allowed_mimes' => isset( $settings['allowed_mimes'] ) ? (string) $settings['allowed_mimes'] : '',
-			'max_file_mb' => isset( $settings['max_file_mb'] ) ? (int) $settings['max_file_mb'] : 0,
-		) );
+		wp_localize_script(
+			'ct-forms-admin',
+			'CTFormsAdmin',
+			array(
+				'nonce'         => wp_create_nonce( 'ct_forms_admin' ),
+				'allowed_mimes' => isset( $settings['allowed_mimes'] ) ? (string) $settings['allowed_mimes'] : '',
+				'max_file_mb'   => isset( $settings['max_file_mb'] ) ? (int) $settings['max_file_mb'] : 0,
+			)
+		);
 	}
 
 	/**
@@ -398,9 +431,13 @@ private static function format_submitted_cell_html( $submitted_raw ) {
 	 * @return mixed
 	 */
 	public static function register_settings() {
-		register_setting( 'ct_forms_settings', 'ct_forms_settings', array(
-			'sanitize_callback' => array( __CLASS__, 'sanitize_settings' ),
-		) );
+		register_setting(
+			'ct_forms_settings',
+			'ct_forms_settings',
+			array(
+				'sanitize_callback' => array( __CLASS__, 'sanitize_settings' ),
+			)
+		);
 	}
 
 	/**
@@ -412,20 +449,21 @@ private static function format_submitted_cell_html( $submitted_raw ) {
 	public static function sanitize_settings( $input ) {
 		$out = array();
 
-		$out['allowed_mimes'] = isset( $input['allowed_mimes'] ) ? sanitize_text_field( $input['allowed_mimes'] ) : '';
-		$out['max_file_mb'] = isset( $input['max_file_mb'] ) ? max( 1, (int) $input['max_file_mb'] ) : 10;
-		$out['rate_limit'] = isset( $input['rate_limit'] ) ? max( 0, (int) $input['rate_limit'] ) : 10;
+		$out['allowed_mimes']       = isset( $input['allowed_mimes'] ) ? sanitize_text_field( $input['allowed_mimes'] ) : '';
+		$out['max_file_mb']         = isset( $input['max_file_mb'] ) ? max( 1, (int) $input['max_file_mb'] ) : 10;
+		$out['rate_limit']          = isset( $input['rate_limit'] ) ? max( 0, (int) $input['rate_limit'] ) : 10;
 		$out['rate_window_minutes'] = isset( $input['rate_window_minutes'] ) ? max( 1, (int) $input['rate_window_minutes'] ) : 10;
-		$out['store_ip'] = ! empty( $input['store_ip'] ) ? 1 : 0;
-		$out['store_user_agent'] = ! empty( $input['store_user_agent'] ) ? 1 : 0;
-		$out['retention_days'] = isset( $input['retention_days'] ) ? max( 0, (int) $input['retention_days'] ) : 0;
+		$out['store_ip']            = ! empty( $input['store_ip'] ) ? 1 : 0;
+		$out['store_user_agent']    = ! empty( $input['store_user_agent'] ) ? 1 : 0;
+		$out['retention_days']      = isset( $input['retention_days'] ) ? max( 0, (int) $input['retention_days'] ) : 0;
 
 		$mode = isset( $input['from_mode'] ) ? sanitize_key( (string) $input['from_mode'] ) : 'default';
-		if ( ! in_array( $mode, array( 'default', 'site', 'custom' ), true ) ) { $mode = 'default'; }
-		$out['from_mode'] = $mode;
+		if ( ! in_array( $mode, array( 'default', 'site', 'custom' ), true ) ) {
+			$mode = 'default'; }
+		$out['from_mode']           = $mode;
 		$out['enforce_from_domain'] = ! empty( $input['enforce_from_domain'] ) ? 1 : 0;
 
-		$type = isset( $input['recaptcha_type'] ) ? sanitize_key( $input['recaptcha_type'] ) : '';
+		$type          = isset( $input['recaptcha_type'] ) ? sanitize_key( $input['recaptcha_type'] ) : '';
 		$allowed_types = array( 'disabled', 'v2_checkbox', 'v2_invisible', 'v3' );
 		if ( '' === $type ) {
 			// Back-compat: older versions used a boolean recaptcha_enabled option.
@@ -435,16 +473,18 @@ private static function format_submitted_cell_html( $submitted_raw ) {
 			$type = 'disabled';
 		}
 
-		$out['recaptcha_type'] = $type;
+		$out['recaptcha_type']    = $type;
 		$out['recaptcha_enabled'] = ( 'disabled' !== $type ) ? 1 : 0;
 
-		$out['recaptcha_site_key'] = isset( $input['recaptcha_site_key'] ) ? sanitize_text_field( $input['recaptcha_site_key'] ) : '';
+		$out['recaptcha_site_key']   = isset( $input['recaptcha_site_key'] ) ? sanitize_text_field( $input['recaptcha_site_key'] ) : '';
 		$out['recaptcha_secret_key'] = isset( $input['recaptcha_secret_key'] ) ? sanitize_text_field( $input['recaptcha_secret_key'] ) : '';
 
 		$out['recaptcha_v3_action'] = isset( $input['recaptcha_v3_action'] ) ? sanitize_text_field( $input['recaptcha_v3_action'] ) : 'ct_forms_submit';
-		$th = isset( $input['recaptcha_v3_threshold'] ) ? floatval( $input['recaptcha_v3_threshold'] ) : 0.5;
-		if ( $th < 0 ) { $th = 0; }
-		if ( $th > 1 ) { $th = 1; }
+		$th                         = isset( $input['recaptcha_v3_threshold'] ) ? floatval( $input['recaptcha_v3_threshold'] ) : 0.5;
+		if ( $th < 0 ) {
+			$th = 0; }
+		if ( $th > 1 ) {
+			$th = 1; }
 		$out['recaptcha_v3_threshold'] = $th;
 
 		return $out;
@@ -457,27 +497,28 @@ private static function format_submitted_cell_html( $submitted_raw ) {
 	 */
 	public static function get_settings() {
 		$defaults = array(
-			'allowed_mimes' => 'jpg,jpeg,png,gif,pdf,doc,docx,xls,xlsx,txt',
-			'max_file_mb' => 10,
-			'rate_limit' => 10,
-			'rate_window_minutes' => 10,
-			'store_ip' => 1,
-			'store_user_agent' => 1,
-			'retention_days' => 0, // 0 = keep forever
-			'from_mode' => 'default', // default|site|custom
-			'enforce_from_domain' => 1,
-			'delete_on_uninstall' => 0,
+			'allowed_mimes'          => 'jpg,jpeg,png,gif,pdf,doc,docx,xls,xlsx,txt',
+			'max_file_mb'            => 10,
+			'rate_limit'             => 10,
+			'rate_window_minutes'    => 10,
+			'store_ip'               => 1,
+			'store_user_agent'       => 1,
+			'retention_days'         => 0, // 0 = keep forever
+			'from_mode'              => 'default', // default|site|custom
+			'enforce_from_domain'    => 1,
+			'delete_on_uninstall'    => 0,
 			// reCAPTCHA (v2 checkbox)
-			'recaptcha_enabled' => 0,
-			'recaptcha_type' => 'disabled',
-			'recaptcha_site_key' => '',
-			'recaptcha_secret_key' => '',
-			'recaptcha_v3_action' => 'ct_forms_submit',
-			'recaptcha_v3_threshold' => 0.5
+			'recaptcha_enabled'      => 0,
+			'recaptcha_type'         => 'disabled',
+			'recaptcha_site_key'     => '',
+			'recaptcha_secret_key'   => '',
+			'recaptcha_v3_action'    => 'ct_forms_submit',
+			'recaptcha_v3_threshold' => 0.5,
 		);
 
 		$s = get_option( 'ct_forms_settings', array() );
-		if ( ! is_array( $s ) ) { $s = array(); }
+		if ( ! is_array( $s ) ) {
+			$s = array(); }
 		$s = array_merge( $defaults, $s );
 
 		// Back-compat: older versions used a boolean recaptcha_enabled option.
@@ -487,7 +528,7 @@ private static function format_submitted_cell_html( $submitted_raw ) {
 		$s['recaptcha_enabled'] = ( 'disabled' !== $s['recaptcha_type'] ) ? 1 : 0;
 
 		return $s;
-}
+	}
 
 	/**
 	 * page_forms method.
@@ -495,16 +536,19 @@ private static function format_submitted_cell_html( $submitted_raw ) {
 	 * @return mixed
 	 */
 	public static function page_forms() {
-		if ( ! current_user_can( 'ct_forms_manage' ) ) { wp_die( 'Not allowed' ); }
+		if ( ! current_user_can( 'ct_forms_manage' ) ) {
+			wp_die( 'Not allowed' ); }
 
 		// Handle quick create
 		if ( isset( $_POST['truitt_new_form'] ) && check_admin_referer( 'truitt_new_form' ) ) {
-			$title = isset( $_POST['form_title'] ) ? sanitize_text_field( wp_unslash( $_POST['form_title'] ) ) : 'New Form';
-			$form_id = wp_insert_post( array(
-				'post_type' => 'ct_form',
-				'post_status' => 'publish',
-				'post_title' => $title,
-			) );
+			$title   = isset( $_POST['form_title'] ) ? sanitize_text_field( wp_unslash( $_POST['form_title'] ) ) : 'New Form';
+			$form_id = wp_insert_post(
+				array(
+					'post_type'   => 'ct_form',
+					'post_status' => 'publish',
+					'post_title'  => $title,
+				)
+			);
 
 			if ( $form_id ) {
 				CT_Forms_CPT::save_form_definition( $form_id, CT_Forms_CPT::default_form_definition() );
@@ -520,13 +564,15 @@ private static function format_submitted_cell_html( $submitted_raw ) {
 			return;
 		}
 
-		$forms = get_posts( array(
-			'post_type' => 'ct_form',
-			'post_status' => 'publish',
-			'numberposts' => 200,
-			'orderby' => 'date',
-			'order' => 'DESC',
-		) );
+		$forms = get_posts(
+			array(
+				'post_type'   => 'ct_form',
+				'post_status' => 'publish',
+				'numberposts' => 200,
+				'orderby'     => 'date',
+				'order'       => 'DESC',
+			)
+		);
 		?>
 		<div class="wrap ct-forms-wrap">
 			<h1><?php esc_html_e( 'CT Forms', 'ct-forms' ); ?></h1>
@@ -573,7 +619,7 @@ private static function format_submitted_cell_html( $submitted_raw ) {
 		<?php
 	}
 
-	
+
 	/**
 	 * truitt_parse_wp_mysql_datetime_to_ts method.
 	 *
@@ -610,7 +656,7 @@ private static function format_submitted_cell_html( $submitted_raw ) {
 		$log = is_array( $mail_log ) ? $mail_log : array();
 
 		$sent_at_raw = isset( $log['sent_at'] ) ? (string) $log['sent_at'] : '';
-		$sent_ts = self::truitt_parse_wp_mysql_datetime_to_ts( $sent_at_raw );
+		$sent_ts     = self::truitt_parse_wp_mysql_datetime_to_ts( $sent_at_raw );
 
 		$date_fmt = get_option( 'date_format' );
 		$time_fmt = get_option( 'time_format' );
@@ -619,7 +665,7 @@ private static function format_submitted_cell_html( $submitted_raw ) {
 		$sent_sub  = $sent_ts ? ( human_time_diff( $sent_ts, current_time( 'timestamp' ) ) . ' ago' ) : '';
 
 		$channels = array(
-			'admin' => array(
+			'admin'         => array(
 				'label' => 'Admin notification',
 				'data'  => isset( $log['admin'] ) && is_array( $log['admin'] ) ? $log['admin'] : array(),
 			),
@@ -652,12 +698,13 @@ private static function format_submitted_cell_html( $submitted_raw ) {
 				</tr>
 			</thead>
 			<tbody>
-			<?php foreach ( $channels as $key => $ch ) :
-				$d = $ch['data'];
-				$to = isset( $d['to'] ) ? (string) $d['to'] : '';
+			<?php
+			foreach ( $channels as $key => $ch ) :
+				$d       = $ch['data'];
+				$to      = isset( $d['to'] ) ? (string) $d['to'] : '';
 				$subject = isset( $d['subject'] ) ? (string) $d['subject'] : '';
-				$sent = isset( $d['sent'] ) ? (bool) $d['sent'] : false;
-				$error = isset( $d['error'] ) ? (string) $d['error'] : '';
+				$sent    = isset( $d['sent'] ) ? (bool) $d['sent'] : false;
+				$error   = isset( $d['error'] ) ? (string) $d['error'] : '';
 				?>
 				<tr>
 					<td><?php echo esc_html( $ch['label'] ); ?></td>
@@ -723,20 +770,20 @@ private static function format_submitted_cell_html( $submitted_raw ) {
 		return ob_get_clean();
 	}
 
-/**
- * page_form_builder method.
- *
- * @param mixed $form_id Parameter.
- * @return mixed
- */
-private static function page_form_builder( $form_id ) {
+	/**
+	 * page_form_builder method.
+	 *
+	 * @param mixed $form_id Parameter.
+	 * @return mixed
+	 */
+	private static function page_form_builder( $form_id ) {
 		$post = get_post( $form_id );
 		if ( ! $post || 'ct_form' !== $post->post_type ) {
 			echo '<div class="wrap ct-forms-wrap"><p>Form not found.</p></div>';
 			return;
 		}
 
-		$def = CT_Forms_CPT::get_form_definition( $form_id );
+		$def      = CT_Forms_CPT::get_form_definition( $form_id );
 		$settings = CT_Forms_CPT::get_form_settings( $form_id );
 		?>
 		<div class="wrap ct-forms-wrap">
@@ -823,10 +870,10 @@ private static function page_form_builder( $form_id ) {
 										array(
 											'textarea_name' => 'email_body',
 											'textarea_rows' => 10,
-											'teeny'         => true,
+											'teeny'     => true,
 											'media_buttons' => false,
-											'quicktags'     => true,
-											'tinymce'       => array(
+											'quicktags' => true,
+											'tinymce'   => array(
 												'toolbar1' => 'bold,italic,underline,bullist,numlist,link,unlink,undo,redo',
 												'toolbar2' => '',
 											),
@@ -863,10 +910,10 @@ private static function page_form_builder( $form_id ) {
 										array(
 											'textarea_name' => 'autoresponder_body',
 											'textarea_rows' => 10,
-											'teeny'         => true,
+											'teeny'     => true,
 											'media_buttons' => false,
-											'quicktags'     => true,
-											'tinymce'       => array(
+											'quicktags' => true,
+											'tinymce'   => array(
 												'toolbar1' => 'bold,italic,underline,bullist,numlist,link,unlink,undo,redo',
 												'toolbar2' => '',
 											),
@@ -893,10 +940,10 @@ private static function page_form_builder( $form_id ) {
 										array(
 											'textarea_name' => 'confirmation_message',
 											'textarea_rows' => 6,
-											'teeny'         => true,
+											'teeny'     => true,
 											'media_buttons' => false,
-											'quicktags'     => true,
-											'tinymce'       => array(
+											'quicktags' => true,
+											'tinymce'   => array(
 												'toolbar1' => 'bold,italic,underline,bullist,numlist,link,unlink,undo,redo',
 												'toolbar2' => '',
 											),
@@ -920,7 +967,7 @@ private static function page_form_builder( $form_id ) {
 					</form>
 				</div>
 			</div>
-<?php
+		<?php
 	}
 
 	/**
@@ -929,10 +976,12 @@ private static function page_form_builder( $form_id ) {
 	 * @return mixed
 	 */
 	public static function save_builder() {
-		if ( ! current_user_can( 'ct_forms_manage' ) ) { wp_die( 'Not allowed' ); }
+		if ( ! current_user_can( 'ct_forms_manage' ) ) {
+			wp_die( 'Not allowed' ); }
 
 		$form_id = isset( $_POST['form_id'] ) ? (int) $_POST['form_id'] : 0;
-		if ( $form_id <= 0 ) { wp_die( 'Invalid form' ); }
+		if ( $form_id <= 0 ) {
+			wp_die( 'Invalid form' ); }
 
 		check_admin_referer( 'ct_forms_save_builder_' . $form_id );
 
@@ -946,21 +995,23 @@ private static function page_form_builder( $form_id ) {
 		// Sanitize definition
 		$fields = array();
 		foreach ( $def['fields'] as $f ) {
-			$id = isset( $f['id'] ) ? sanitize_key( $f['id'] ) : '';
+			$id   = isset( $f['id'] ) ? sanitize_key( $f['id'] ) : '';
 			$type = isset( $f['type'] ) ? sanitize_key( $f['type'] ) : 'text';
-			if ( '' === $id ) { continue; }
+			if ( '' === $id ) {
+				continue; }
 
 			$allowed_types = array( 'text', 'textarea', 'email', 'number', 'date', 'time', 'select', 'state', 'checkboxes', 'radios', 'file', 'diagnostics' );
-			if ( ! in_array( $type, $allowed_types, true ) ) { $type = 'text'; }
+			if ( ! in_array( $type, $allowed_types, true ) ) {
+				$type = 'text'; }
 
 			$field = array(
-				'id' => $id,
-				'type' => $type,
-				'label' => isset( $f['label'] ) ? sanitize_text_field( $f['label'] ) : $id,
-				'required' => ! empty( $f['required'] ),
+				'id'          => $id,
+				'type'        => $type,
+				'label'       => isset( $f['label'] ) ? sanitize_text_field( $f['label'] ) : $id,
+				'required'    => ! empty( $f['required'] ),
 				'placeholder' => isset( $f['placeholder'] ) ? sanitize_text_field( $f['placeholder'] ) : '',
-				'help' => isset( $f['help'] ) ? sanitize_text_field( $f['help'] ) : '',
-				'options' => array(),
+				'help'        => isset( $f['help'] ) ? sanitize_text_field( $f['help'] ) : '',
+				'options'     => array(),
 			);
 
 			if ( in_array( $type, array( 'select', 'checkboxes', 'radios' ), true ) && ! empty( $f['options'] ) && is_array( $f['options'] ) ) {
@@ -968,7 +1019,10 @@ private static function page_form_builder( $form_id ) {
 					$v = isset( $opt['value'] ) ? sanitize_text_field( $opt['value'] ) : '';
 					$t = isset( $opt['label'] ) ? sanitize_text_field( $opt['label'] ) : $v;
 					if ( '' !== $v ) {
-						$field['options'][] = array( 'value' => $v, 'label' => $t );
+						$field['options'][] = array(
+							'value' => $v,
+							'label' => $t,
+						);
 					}
 				}
 			}
@@ -985,18 +1039,18 @@ private static function page_form_builder( $form_id ) {
 
 		$def_out = array(
 			'version' => 1,
-			'fields' => $fields,
+			'fields'  => $fields,
 		);
 
 		CT_Forms_CPT::save_form_definition( $form_id, $def_out );
-	    // Ensure the latest definition is used immediately (front-end + admin), even with object caching.
-	    clean_post_cache( $form_id );
-	    wp_cache_delete( $form_id, 'posts' );
-	    if ( function_exists( 'do_action' ) ) {
-	        // Optional cache-plugin integration points (no-ops if not installed).
-	        do_action( 'litespeed_purge_post', $form_id );
-	        do_action( 'wpfc_clear_post_cache_by_id', $form_id );
-	    }
+		// Ensure the latest definition is used immediately (front-end + admin), even with object caching.
+		clean_post_cache( $form_id );
+		wp_cache_delete( $form_id, 'posts' );
+		if ( function_exists( 'do_action' ) ) {
+			// Optional cache-plugin integration points (no-ops if not installed).
+			do_action( 'litespeed_purge_post', $form_id );
+			do_action( 'wpfc_clear_post_cache_by_id', $form_id );
+		}
 
 		wp_safe_redirect( admin_url( 'admin.php?page=ct-forms&edit_form=' . (int) $form_id . '&saved=1' ) );
 		exit;
@@ -1008,33 +1062,34 @@ private static function page_form_builder( $form_id ) {
 	 * @return mixed
 	 */
 	public static function save_form_settings() {
-		if ( ! current_user_can( 'ct_forms_manage' ) ) { wp_die( 'Not allowed' ); }
+		if ( ! current_user_can( 'ct_forms_manage' ) ) {
+			wp_die( 'Not allowed' ); }
 
 		$form_id = isset( $_POST['form_id'] ) ? (int) $_POST['form_id'] : 0;
-		if ( $form_id <= 0 ) { wp_die( 'Invalid form' ); }
+		if ( $form_id <= 0 ) {
+			wp_die( 'Invalid form' ); }
 
 		check_admin_referer( 'ct_forms_save_form_settings_' . $form_id );
-
 
 		// If the builder definition was posted with this request, save it as well.
 		if ( isset( $_POST['ct_form_definition'] ) ) {
 			$raw_def = wp_unslash( $_POST['ct_form_definition'] );
-			$def = json_decode( $raw_def, true );
+			$def     = json_decode( $raw_def, true );
 			if ( is_array( $def ) ) {
 				CT_Forms_CPT::save_form_definition( $form_id, $def );
-	                clean_post_cache( $form_id );
-	                wp_cache_delete( $form_id, 'posts' );
+					clean_post_cache( $form_id );
+					wp_cache_delete( $form_id, 'posts' );
 			}
 		}
 
 		$settings = CT_Forms_CPT::get_form_settings( $form_id );
 
-		$settings['to_email'] = isset( $_POST['to_email'] ) ? sanitize_email( wp_unslash( $_POST['to_email'] ) ) : $settings['to_email'];
-		$settings['cc'] = isset( $_POST['cc'] ) ? sanitize_text_field( wp_unslash( $_POST['cc'] ) ) : '';
-		$settings['bcc'] = isset( $_POST['bcc'] ) ? sanitize_text_field( wp_unslash( $_POST['bcc'] ) ) : '';
+		$settings['to_email']       = isset( $_POST['to_email'] ) ? sanitize_email( wp_unslash( $_POST['to_email'] ) ) : $settings['to_email'];
+		$settings['cc']             = isset( $_POST['cc'] ) ? sanitize_text_field( wp_unslash( $_POST['cc'] ) ) : '';
+		$settings['bcc']            = isset( $_POST['bcc'] ) ? sanitize_text_field( wp_unslash( $_POST['bcc'] ) ) : '';
 		$settings['reply_to_field'] = isset( $_POST['reply_to_field'] ) ? sanitize_key( wp_unslash( $_POST['reply_to_field'] ) ) : 'email';
-		$settings['email_subject'] = isset( $_POST['email_subject'] ) ? sanitize_text_field( wp_unslash( $_POST['email_subject'] ) ) : $settings['email_subject'];
-		$settings['email_body'] = isset( $_POST['email_body'] ) ? wp_kses_post( self::normalize_template_newlines( wp_unslash( $_POST['email_body'] ) ) ) : $settings['email_body'];
+		$settings['email_subject']  = isset( $_POST['email_subject'] ) ? sanitize_text_field( wp_unslash( $_POST['email_subject'] ) ) : $settings['email_subject'];
+		$settings['email_body']     = isset( $_POST['email_body'] ) ? wp_kses_post( self::normalize_template_newlines( wp_unslash( $_POST['email_body'] ) ) ) : $settings['email_body'];
 
 		$settings['attach_uploads'] = ! empty( $_POST['attach_uploads'] ) ? 1 : 0;
 
@@ -1043,47 +1098,50 @@ private static function page_form_builder( $form_id ) {
 		$settings['recaptcha_enabled'] = ! empty( $_POST['recaptcha_enabled'] ) ? 1 : 0;
 
 		$rules_json = isset( $_POST['routing_rules_json'] ) ? wp_unslash( $_POST['routing_rules_json'] ) : '';
-		$rules = json_decode( (string) $rules_json, true );
+		$rules      = json_decode( (string) $rules_json, true );
 		if ( is_array( $rules ) ) {
 			$clean = array();
 			foreach ( $rules as $r ) {
-				if ( ! is_array( $r ) ) { continue; }
+				if ( ! is_array( $r ) ) {
+					continue; }
 				$field = isset( $r['field'] ) ? sanitize_key( $r['field'] ) : '';
-				$op = isset( $r['operator'] ) ? sanitize_text_field( $r['operator'] ) : 'equals';
-				$val = isset( $r['value'] ) ? sanitize_text_field( $r['value'] ) : '';
-				$to = isset( $r['to_email'] ) ? sanitize_email( $r['to_email'] ) : '';
-				if ( '' === $field || '' === $to ) { continue; }
-				if ( ! in_array( $op, array( 'equals', 'contains' ), true ) ) { $op = 'equals'; }
+				$op    = isset( $r['operator'] ) ? sanitize_text_field( $r['operator'] ) : 'equals';
+				$val   = isset( $r['value'] ) ? sanitize_text_field( $r['value'] ) : '';
+				$to    = isset( $r['to_email'] ) ? sanitize_email( $r['to_email'] ) : '';
+				if ( '' === $field || '' === $to ) {
+					continue; }
+				if ( ! in_array( $op, array( 'equals', 'contains' ), true ) ) {
+					$op = 'equals'; }
 				$clean[] = array(
-					'field' => $field,
+					'field'    => $field,
 					'operator' => $op,
-					'value' => $val,
+					'value'    => $val,
 					'to_email' => $to,
 				);
 			}
 			$settings['routing_rules'] = $clean;
 		}
 
-		$settings['autoresponder_enabled'] = ! empty( $_POST['autoresponder_enabled'] ) ? 1 : 0;
+		$settings['autoresponder_enabled']  = ! empty( $_POST['autoresponder_enabled'] ) ? 1 : 0;
 		$settings['autoresponder_to_field'] = isset( $_POST['autoresponder_to_field'] ) ? sanitize_key( wp_unslash( $_POST['autoresponder_to_field'] ) ) : 'email';
-		$settings['autoresponder_subject'] = isset( $_POST['autoresponder_subject'] ) ? sanitize_text_field( wp_unslash( $_POST['autoresponder_subject'] ) ) : $settings['autoresponder_subject'];
-		$settings['autoresponder_body'] = isset( $_POST['autoresponder_body'] ) ? wp_kses_post( self::normalize_template_newlines( wp_unslash( $_POST['autoresponder_body'] ) ) ) : $settings['autoresponder_body'];
+		$settings['autoresponder_subject']  = isset( $_POST['autoresponder_subject'] ) ? sanitize_text_field( wp_unslash( $_POST['autoresponder_subject'] ) ) : $settings['autoresponder_subject'];
+		$settings['autoresponder_body']     = isset( $_POST['autoresponder_body'] ) ? wp_kses_post( self::normalize_template_newlines( wp_unslash( $_POST['autoresponder_body'] ) ) ) : $settings['autoresponder_body'];
 
 		$settings['confirmation_type'] = isset( $_POST['confirmation_type'] ) && in_array( $_POST['confirmation_type'], array( 'message', 'redirect' ), true ) ? sanitize_key( $_POST['confirmation_type'] ) : 'message';
 		// Confirmation messages are displayed to end users; allow basic formatting while preserving line breaks.
-		$settings['confirmation_message'] = isset( $_POST['confirmation_message'] )
+		$settings['confirmation_message']  = isset( $_POST['confirmation_message'] )
 			? wp_kses_post( self::normalize_template_newlines( wp_unslash( $_POST['confirmation_message'] ) ) )
 			: $settings['confirmation_message'];
 		$settings['confirmation_redirect'] = isset( $_POST['confirmation_redirect'] ) ? esc_url_raw( wp_unslash( $_POST['confirmation_redirect'] ) ) : '';
 
 		CT_Forms_CPT::save_form_settings( $form_id, $settings );
-	    // Clear any caches so the updated settings are reflected immediately.
-	    // On some hosts with persistent object caching, the post_meta cache can
-	    // survive update_post_meta() within the same request, which makes it look
-	    // like email templates "didn't save" until caches expire.
-	    clean_post_cache( $form_id );
-	    wp_cache_delete( $form_id, 'posts' );
-	    wp_cache_delete( $form_id, 'post_meta' );
+		// Clear any caches so the updated settings are reflected immediately.
+		// On some hosts with persistent object caching, the post_meta cache can
+		// survive update_post_meta() within the same request, which makes it look
+		// like email templates "didn't save" until caches expire.
+		clean_post_cache( $form_id );
+		wp_cache_delete( $form_id, 'posts' );
+		wp_cache_delete( $form_id, 'post_meta' );
 
 		wp_safe_redirect( admin_url( 'admin.php?page=ct-forms&edit_form=' . (int) $form_id . '&saved_settings=1' ) );
 		exit;
@@ -1095,7 +1153,8 @@ private static function page_form_builder( $form_id ) {
 	 * @return mixed
 	 */
 	public static function page_entries() {
-		if ( ! current_user_can( 'ct_forms_view_entries' ) && ! current_user_can( 'ct_forms_manage' ) ) { wp_die( 'Not allowed' ); }
+		if ( ! current_user_can( 'ct_forms_view_entries' ) && ! current_user_can( 'ct_forms_manage' ) ) {
+			wp_die( 'Not allowed' ); }
 
 		$entry_id = isset( $_GET['entry_id'] ) ? (int) $_GET['entry_id'] : 0;
 		if ( $entry_id > 0 ) {
@@ -1103,7 +1162,7 @@ private static function page_form_builder( $form_id ) {
 			return;
 		}
 
-		$form_id = isset( $_GET['form_id'] ) ? (int) $_GET['form_id'] : 0;
+		$form_id      = isset( $_GET['form_id'] ) ? (int) $_GET['form_id'] : 0;
 		$missing_only = ! empty( $_GET['missing'] ) ? 1 : 0;
 
 		?>
@@ -1124,9 +1183,9 @@ private static function page_form_builder( $form_id ) {
 			wp_die( 'Not allowed' );
 		}
 
-		$paged = isset( $_GET['paged'] ) ? max( 1, (int) $_GET['paged'] ) : 1;
+		$paged    = isset( $_GET['paged'] ) ? max( 1, (int) $_GET['paged'] ) : 1;
 		$per_page = 25;
-		$form_id = isset( $_GET['form_id'] ) ? (int) $_GET['form_id'] : 0;
+		$form_id  = isset( $_GET['form_id'] ) ? (int) $_GET['form_id'] : 0;
 
 		// Back-compat: older builds used a "missing" checkbox.
 		$missing_only = ! empty( $_GET['missing'] ) ? 1 : 0;
@@ -1141,30 +1200,33 @@ private static function page_form_builder( $form_id ) {
 
 		$allowed_statuses = array( 'all', 'ok', 'missing' );
 
-		$search = isset( $_GET['s'] ) ? sanitize_text_field( wp_unslash( (string) $_GET['s'] ) ) : '';
+		$search        = isset( $_GET['s'] ) ? sanitize_text_field( wp_unslash( (string) $_GET['s'] ) ) : '';
 		$status_filter = isset( $_GET['status'] ) ? sanitize_key( wp_unslash( (string) $_GET['status'] ) ) : '';
-		if ( $status_filter !== '' && ! in_array( $status_filter, $allowed_statuses, true ) ) { $status_filter = ''; }
+		if ( $status_filter !== '' && ! in_array( $status_filter, $allowed_statuses, true ) ) {
+			$status_filter = ''; }
 		$search = trim( $search );
 
-		$q = CT_Forms_DB::get_entries_with_files( array(
-			'paged' => $paged,
-			'per_page' => $per_page,
-			'form_id' => $form_id,
-			'search' => $search,
-		) );
+		$q = CT_Forms_DB::get_entries_with_files(
+			array(
+				'paged'    => $paged,
+				'per_page' => $per_page,
+				'form_id'  => $form_id,
+				'search'   => $search,
+			)
+		);
 
-		$total = isset( $q['total'] ) ? (int) $q['total'] : 0;
-		$items = isset( $q['items'] ) ? (array) $q['items'] : array();
+		$total       = isset( $q['total'] ) ? (int) $q['total'] : 0;
+		$items       = isset( $q['items'] ) ? (array) $q['items'] : array();
 		$total_pages = $per_page > 0 ? (int) ceil( $total / $per_page ) : 1;
 
 		// Build file rows.
-		$rows = array();
+		$rows       = array();
 		$defs_cache = array();
 
 		foreach ( $items as $entry ) {
-			$eid = isset( $entry['entry_id'] ) ? (int) $entry['entry_id'] : ( isset( $entry['id'] ) ? (int) $entry['id'] : 0 );
+			$eid      = isset( $entry['entry_id'] ) ? (int) $entry['entry_id'] : ( isset( $entry['id'] ) ? (int) $entry['id'] : 0 );
 			$fid_form = isset( $entry['form_id'] ) ? (int) $entry['form_id'] : 0;
-			$files = isset( $entry['files'] ) && is_array( $entry['files'] ) ? $entry['files'] : array();
+			$files    = isset( $entry['files'] ) && is_array( $entry['files'] ) ? $entry['files'] : array();
 			if ( $eid <= 0 || empty( $files ) ) {
 				continue;
 			}
@@ -1177,14 +1239,16 @@ private static function page_form_builder( $form_id ) {
 			if ( $fid_form > 0 && ! empty( $defs_cache[ $fid_form ]['fields'] ) ) {
 				foreach ( (array) $defs_cache[ $fid_form ]['fields'] as $f ) {
 					$id = isset( $f['id'] ) ? sanitize_key( (string) $f['id'] ) : '';
-					if ( '' === $id ) { continue; }
+					if ( '' === $id ) {
+						continue; }
 					$labels[ $id ] = isset( $f['label'] ) ? (string) $f['label'] : $id;
 				}
 			}
 
 			foreach ( $files as $field_key => $file_obj ) {
 				$field_key = sanitize_key( (string) $field_key );
-				if ( '' === $field_key ) { continue; }
+				if ( '' === $field_key ) {
+					continue; }
 				// Stored key might be truitt_field_{id}; normalize for display.
 				$display_field_id = $field_key;
 				if ( 0 === strpos( $display_field_id, 'truitt_field_' ) ) {
@@ -1193,72 +1257,81 @@ private static function page_form_builder( $form_id ) {
 
 				$list = ( is_array( $file_obj ) && isset( $file_obj[0] ) ) ? $file_obj : array( $file_obj );
 				foreach ( $list as $idx => $f ) {
-					if ( ! is_array( $f ) ) { continue; }
+					if ( ! is_array( $f ) ) {
+						continue; }
 
 					$rows[] = array(
-						'entry_id' => $eid,
-						'form_id'  => $fid_form,
-						'field_id' => $display_field_id,
-						'field_label' => isset( $labels[ $display_field_id ] ) ? $labels[ $display_field_id ] : $display_field_id,
-						'idx'      => (int) $idx,
-						'name'     => isset( $f['original'] ) ? (string) $f['original'] : ( isset( $f['name'] ) ? (string) $f['name'] : '' ),
-						'size'     => isset( $f['size'] ) ? (int) $f['size'] : 0,
-						'type'     => isset( $f['type'] ) ? (string) $f['type'] : '',
+						'entry_id'     => $eid,
+						'form_id'      => $fid_form,
+						'field_id'     => $display_field_id,
+						'field_label'  => isset( $labels[ $display_field_id ] ) ? $labels[ $display_field_id ] : $display_field_id,
+						'idx'          => (int) $idx,
+						'name'         => isset( $f['original'] ) ? (string) $f['original'] : ( isset( $f['name'] ) ? (string) $f['name'] : '' ),
+						'size'         => isset( $f['size'] ) ? (int) $f['size'] : 0,
+						'type'         => isset( $f['type'] ) ? (string) $f['type'] : '',
 						'submitted_at' => isset( $entry['submitted_at'] ) ? (string) $entry['submitted_at'] : '',
-						'path'     => isset( $f['path'] ) ? (string) $f['path'] : ( isset( $f['file'] ) ? (string) $f['file'] : '' ),
-						'url'      => isset( $f['url'] ) ? (string) $f['url'] : '',
+						'path'         => isset( $f['path'] ) ? (string) $f['path'] : ( isset( $f['file'] ) ? (string) $f['file'] : '' ),
+						'url'          => isset( $f['url'] ) ? (string) $f['url'] : '',
 					);
 				}
 			}
 		}
 
-		
 		// Apply status and filename search filters at the file-row level.
 		if ( 'all' !== $status || '' !== $search ) {
 			$needle = strtolower( $search );
-			$rows = array_values( array_filter( $rows, function( $r ) use ( $status, $needle ) {
-				$p = isset( $r['path'] ) ? (string) $r['path'] : '';
-				$exists = ( '' !== $p ) && CT_Forms_Admin::file_exists_safe( $p );
+			$rows   = array_values(
+				array_filter(
+					$rows,
+					function ( $r ) use ( $status, $needle ) {
+						$p      = isset( $r['path'] ) ? (string) $r['path'] : '';
+						$exists = ( '' !== $p ) && CT_Forms_Admin::file_exists_safe( $p );
 
-				if ( 'missing' === $status && $exists ) {
-					return false;
-				}
-				if ( 'ok' === $status && ! $exists ) {
-					return false;
-				}
+						if ( 'missing' === $status && $exists ) {
+							return false;
+						}
+						if ( 'ok' === $status && ! $exists ) {
+							return false;
+						}
 
-				if ( '' !== $needle ) {
-					$name = isset( $r['name'] ) ? strtolower( (string) $r['name'] ) : '';
-					if ( false === strpos( $name, $needle ) ) {
-						return false;
+						if ( '' !== $needle ) {
+							$name = isset( $r['name'] ) ? strtolower( (string) $r['name'] ) : '';
+							if ( false === strpos( $name, $needle ) ) {
+								return false;
+							}
+						}
+
+						return true;
 					}
-				}
-
-				return true;
-			} ) );
+				)
+			);
 			// Note: when filtering, total counts/pagination are based on entries, not files.
 		}
 
-// Forms dropdown for filtering.
-		$forms = get_posts( array(
-			'post_type' => 'ct_form',
-			'post_status' => 'publish',
-			'numberposts' => 200,
-			'orderby' => 'title',
-			'order' => 'ASC',
-		) );
+		// Forms dropdown for filtering.
+		$forms = get_posts(
+			array(
+				'post_type'   => 'ct_form',
+				'post_status' => 'publish',
+				'numberposts' => 200,
+				'orderby'     => 'title',
+				'order'       => 'ASC',
+			)
+		);
 
 		$base_url = admin_url( 'admin.php?page=ct-forms-files' );
 
-		$redirect_back = add_query_arg( array(
-			'page'   => 'ct-forms-files',
-			'paged'  => $paged,
-			'form_id'=> $form_id,
-			'status' => $status,
-			's'      => $search,
-			'missing'=> $missing_only,
-		), admin_url( 'admin.php' ) );
-
+		$redirect_back = add_query_arg(
+			array(
+				'page'    => 'ct-forms-files',
+				'paged'   => $paged,
+				'form_id' => $form_id,
+				'status'  => $status,
+				's'       => $search,
+				'missing' => $missing_only,
+			),
+			admin_url( 'admin.php' )
+		);
 
 		?>
 		<div class="wrap ct-forms-wrap">
@@ -1354,43 +1427,52 @@ private static function page_form_builder( $form_id ) {
 						<?php
 							$entry_link = admin_url( 'admin.php?page=ct-forms-entries&entry_id=' . (int) $r['entry_id'] );
 							$form_title = $r['form_id'] ? get_the_title( (int) $r['form_id'] ) : '';
-							$dt = '';
-							if ( ! empty( $r['submitted_at'] ) ) {
-								$ts = strtotime( $r['submitted_at'] );
-								if ( $ts !== false ) {
-									$dt = wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $ts );
-								}
+							$dt         = '';
+						if ( ! empty( $r['submitted_at'] ) ) {
+							$ts = strtotime( $r['submitted_at'] );
+							if ( $ts !== false ) {
+								$dt = wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $ts );
 							}
+						}
 
 							$download_nonce = wp_create_nonce( 'ct_forms_download_' . (int) $r['entry_id'] . '_' . $r['field_id'] . '_' . (int) $r['idx'] );
-							$download_url = add_query_arg( array(
-								'action' => 'ct_forms_download',
-								'entry_id' => (int) $r['entry_id'],
-								'field_id' => $r['field_id'],
-								'file_index' => (int) $r['idx'],
-								'_wpnonce' => $download_nonce,
-							), admin_url( 'admin-post.php' ) );
+							$download_url   = add_query_arg(
+								array(
+									'action'     => 'ct_forms_download',
+									'entry_id'   => (int) $r['entry_id'],
+									'field_id'   => $r['field_id'],
+									'file_index' => (int) $r['idx'],
+									'_wpnonce'   => $download_nonce,
+								),
+								admin_url( 'admin-post.php' )
+							);
 
 							$delete_url = '';
-							if ( current_user_can( 'ct_forms_manage' ) ) {
-								$delete_nonce = wp_create_nonce( 'ct_forms_delete_' . (int) $r['entry_id'] . '_' . $r['field_id'] . '_' . (int) $r['idx'] );
-								$redirect_back = add_query_arg( array(
-									'page' => 'ct-forms-files',
+						if ( current_user_can( 'ct_forms_manage' ) ) {
+							$delete_nonce  = wp_create_nonce( 'ct_forms_delete_' . (int) $r['entry_id'] . '_' . $r['field_id'] . '_' . (int) $r['idx'] );
+							$redirect_back = add_query_arg(
+								array(
+									'page'    => 'ct-forms-files',
 									'form_id' => $form_id,
-									'paged' => $paged,
-									'status' => $status,
-									's' => $search,
+									'paged'   => $paged,
+									'status'  => $status,
+									's'       => $search,
 									'missing' => $missing_only,
-								), admin_url( 'admin.php' ) );
-								$delete_url = add_query_arg( array(
-									'action' => 'ct_forms_delete_file',
-									'entry_id' => (int) $r['entry_id'],
-									'field_id' => $r['field_id'],
+								),
+								admin_url( 'admin.php' )
+							);
+							$delete_url    = add_query_arg(
+								array(
+									'action'     => 'ct_forms_delete_file',
+									'entry_id'   => (int) $r['entry_id'],
+									'field_id'   => $r['field_id'],
 									'file_index' => (int) $r['idx'],
-									'_wpnonce' => $delete_nonce,
-									'_redirect' => $redirect_back,
-								), admin_url( 'admin-post.php' ) );
-							}
+									'_wpnonce'   => $delete_nonce,
+									'_redirect'  => $redirect_back,
+								),
+								admin_url( 'admin-post.php' )
+							);
+						}
 						?>
 						<tr>
 							<th scope="row" class="check-column">
@@ -1405,8 +1487,16 @@ private static function page_form_builder( $form_id ) {
 							<td><?php echo esc_html( $r['name'] ); ?></td>
 							<td><?php echo esc_html( $r['size'] ? size_format( (int) $r['size'], 1 ) : '—' ); ?></td>
 							<td><?php echo esc_html( $r['type'] ? $r['type'] : '—' ); ?></td>
-							<?php $exists = CT_Forms_Admin::file_exists_safe( $r['path'] ?? '' ); ?>
-							<td><?php if ( $exists ) : ?><span class="truitt-file-status truitt-file-status--ok"><?php echo esc_html__( 'OK', 'ct-forms' ); ?></span><?php else : ?><span class="truitt-file-status truitt-file-status--missing"><?php echo esc_html__( 'Missing', 'ct-forms' ); ?></span><?php endif; ?></td>
+							<?php $exists = self::file_exists_safe( $r['path'] ?? '' ); ?>
+							<td>
+							<?php
+							if ( $exists ) :
+								?>
+								<span class="truitt-file-status truitt-file-status--ok"><?php echo esc_html__( 'OK', 'ct-forms' ); ?></span>
+								<?php
+else :
+	?>
+	<span class="truitt-file-status truitt-file-status--missing"><?php echo esc_html__( 'Missing', 'ct-forms' ); ?></span><?php endif; ?></td>
 							<td>
 								<a class="button button-small" href="<?php echo esc_url( $download_url ); ?>"><?php echo esc_html__( 'Download', 'ct-forms' ); ?></a>
 								<?php if ( $delete_url ) : ?>
@@ -1438,20 +1528,25 @@ private static function page_form_builder( $form_id ) {
 				<div class="tablenav" style="margin-top:12px;">
 					<div class="tablenav-pages">
 						<?php
-							$page_links = paginate_links( array(
-								'base' => add_query_arg( array(
-									'paged' => '%#%',
-									'form_id' => $form_id,
-									'status' => $status,
-									's' => $search,
-									'missing' => $missing_only,
-								), $base_url ),
-								'format' => '',
-								'prev_text' => '«',
-								'next_text' => '»',
-								'total' => $total_pages,
-								'current' => $paged,
-							) );
+							$page_links = paginate_links(
+								array(
+									'base'      => add_query_arg(
+										array(
+											'paged'   => '%#%',
+											'form_id' => $form_id,
+											'status'  => $status,
+											's'       => $search,
+											'missing' => $missing_only,
+										),
+										$base_url
+									),
+									'format'    => '',
+									'prev_text' => '«',
+									'next_text' => '»',
+									'total'     => $total_pages,
+									'current'   => $paged,
+								)
+							);
 							echo $page_links; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 						?>
 					</div>
@@ -1469,94 +1564,95 @@ private static function page_form_builder( $form_id ) {
 	 * @return mixed
 	 */
 	private static function page_entry_detail( $entry_id ) {
-	$entry = CT_Forms_DB::get_entry( $entry_id );
-	if ( ! $entry ) {
-		echo '<div class="wrap ct-forms-wrap"><p>Entry not found.</p></div>';
-		return;
-	}
-
-	// Form definition for field labels (used in uploads section).
-	$def = CT_Forms_CPT::get_form_definition( (int) $entry['form_id'] );
-	$field_label_map = array();
-	if ( is_array( $def ) && ! empty( $def['fields'] ) && is_array( $def['fields'] ) ) {
-		foreach ( $def['fields'] as $ff ) {
-			if ( ! is_array( $ff ) || empty( $ff['id'] ) ) { continue; }
-			$field_label_map[ (string) $ff['id'] ] = ! empty( $ff['label'] ) ? (string) $ff['label'] : (string) $ff['id'];
-		}
-	}
-
-	$form = get_post( (int) $entry['form_id'] );
-	/* translators: %d: form ID. */
-	$form_name = $form ? $form->post_title : sprintf( __( 'Form #%d', 'ct-forms' ), (int) $entry['form_id'] );
-
-	// Build download links for uploads (supports single and multi-file fields).
-	$download_links = array();
-	foreach ( (array) ( $entry['files'] ?? array() ) as $fid => $f ) {
-		if ( empty( $f ) ) {
-			continue;
+		$entry = CT_Forms_DB::get_entry( $entry_id );
+		if ( ! $entry ) {
+			echo '<div class="wrap ct-forms-wrap"><p>Entry not found.</p></div>';
+			return;
 		}
 
-		// Single file.
-		if ( is_array( $f ) && isset( $f['path'] ) ) {
-			$idx = 0;
-			$nonce_action = 'ct_forms_download_' . $entry_id . '_' . $fid . '_' . $idx;
-			$nonce = wp_create_nonce( $nonce_action );
-
-			$download_links[ $fid ] = array(
-				add_query_arg(
-					array(
-						'action'   => 'ct_forms_download',
-						'entry_id' => $entry_id,
-						'field_id' => $fid,
-						'file_index' => $idx,
-						'_wpnonce' => $nonce,
-					),
-					admin_url( 'admin-post.php' )
-				),
-			);
-			continue;
-		}
-
-		// Multiple files.
-		if ( is_array( $f ) ) {
-			$download_links[ $fid ] = array();
-
-			foreach ( $f as $idx => $fi ) {
-				if ( empty( $fi ) || ! is_array( $fi ) ) {
-					continue;
-				}
-
-				$nonce_action = 'ct_forms_download_' . $entry_id . '_' . $fid . '_' . (int) $idx;
-				$nonce = wp_create_nonce( $nonce_action );
-
-				$download_links[ $fid ][] = add_query_arg(
-					array(
-						'action'   => 'ct_forms_download',
-						'entry_id' => $entry_id,
-						'field_id' => $fid,
-						'file_index' => (int) $idx,
-						'_wpnonce' => $nonce,
-					),
-					admin_url( 'admin-post.php' )
-				);
+		// Form definition for field labels (used in uploads section).
+		$def             = CT_Forms_CPT::get_form_definition( (int) $entry['form_id'] );
+		$field_label_map = array();
+		if ( is_array( $def ) && ! empty( $def['fields'] ) && is_array( $def['fields'] ) ) {
+			foreach ( $def['fields'] as $ff ) {
+				if ( ! is_array( $ff ) || empty( $ff['id'] ) ) {
+					continue; }
+				$field_label_map[ (string) $ff['id'] ] = ! empty( $ff['label'] ) ? (string) $ff['label'] : (string) $ff['id'];
 			}
 		}
-	}
 
-	$submitted_raw  = $entry['submitted_at'] ?? ( $entry['created_at'] ?? '' );
-	$submitted_html = self::format_submitted_cell_html( $submitted_raw );
+		$form = get_post( (int) $entry['form_id'] );
+		/* translators: %d: form ID. */
+		$form_name = $form ? $form->post_title : sprintf( __( 'Form #%d', 'ct-forms' ), (int) $entry['form_id'] );
 
-	$allowed_statuses = array( 'new', 'reviewed', 'follow_up', 'spam', 'archived' );
-	$status = isset( $entry['status'] ) ? sanitize_key( (string) $entry['status'] ) : 'new';
-	if ( ! in_array( $status, $allowed_statuses, true ) ) {
-		$status = 'new';
-	}
-	$status_class = 'truitt-entry-status';
-	if ( $status ) {
-		$status_class .= ' truitt-entry-status--' . sanitize_html_class( $status );
-	}
+		// Build download links for uploads (supports single and multi-file fields).
+		$download_links = array();
+		foreach ( (array) ( $entry['files'] ?? array() ) as $fid => $f ) {
+			if ( empty( $f ) ) {
+				continue;
+			}
 
-	?>
+			// Single file.
+			if ( is_array( $f ) && isset( $f['path'] ) ) {
+				$idx          = 0;
+				$nonce_action = 'ct_forms_download_' . $entry_id . '_' . $fid . '_' . $idx;
+				$nonce        = wp_create_nonce( $nonce_action );
+
+				$download_links[ $fid ] = array(
+					add_query_arg(
+						array(
+							'action'     => 'ct_forms_download',
+							'entry_id'   => $entry_id,
+							'field_id'   => $fid,
+							'file_index' => $idx,
+							'_wpnonce'   => $nonce,
+						),
+						admin_url( 'admin-post.php' )
+					),
+				);
+				continue;
+			}
+
+			// Multiple files.
+			if ( is_array( $f ) ) {
+				$download_links[ $fid ] = array();
+
+				foreach ( $f as $idx => $fi ) {
+					if ( empty( $fi ) || ! is_array( $fi ) ) {
+						continue;
+					}
+
+					$nonce_action = 'ct_forms_download_' . $entry_id . '_' . $fid . '_' . (int) $idx;
+					$nonce        = wp_create_nonce( $nonce_action );
+
+					$download_links[ $fid ][] = add_query_arg(
+						array(
+							'action'     => 'ct_forms_download',
+							'entry_id'   => $entry_id,
+							'field_id'   => $fid,
+							'file_index' => (int) $idx,
+							'_wpnonce'   => $nonce,
+						),
+						admin_url( 'admin-post.php' )
+					);
+				}
+			}
+		}
+
+		$submitted_raw  = $entry['submitted_at'] ?? ( $entry['created_at'] ?? '' );
+		$submitted_html = self::format_submitted_cell_html( $submitted_raw );
+
+		$allowed_statuses = array( 'new', 'reviewed', 'follow_up', 'spam', 'archived' );
+		$status           = isset( $entry['status'] ) ? sanitize_key( (string) $entry['status'] ) : 'new';
+		if ( ! in_array( $status, $allowed_statuses, true ) ) {
+			$status = 'new';
+		}
+		$status_class = 'truitt-entry-status';
+		if ( $status ) {
+			$status_class .= ' truitt-entry-status--' . sanitize_html_class( $status );
+		}
+
+		?>
 	<div class="wrap ct-forms-wrap">
 		<?php if ( ! empty( $_GET['ct_forms_file_deleted'] ) ) : ?>
 			<div class="notice notice-success is-dismissible"><p><?php echo esc_html__( 'File deleted.', 'ct-forms' ); ?></p></div>
@@ -1642,7 +1738,8 @@ private static function page_form_builder( $form_id ) {
 							$files_to_show[] = $f;
 						} elseif ( is_array( $f ) ) {
 							foreach ( $f as $fi ) {
-								if ( is_array( $fi ) ) { $files_to_show[] = $fi; }
+								if ( is_array( $fi ) ) {
+									$files_to_show[] = $fi; }
 							}
 						}
 
@@ -1653,7 +1750,7 @@ private static function page_form_builder( $form_id ) {
 
 						$redirect_back = add_query_arg(
 							array(
-								'page' => 'ct-forms-entries',
+								'page'     => 'ct-forms-entries',
 								'entry_id' => (int) $entry_id,
 							),
 							admin_url( 'admin.php' )
@@ -1665,8 +1762,16 @@ private static function page_form_builder( $form_id ) {
 								<td><?php echo esc_html( isset( $fi['name'] ) ? (string) $fi['name'] : '' ); ?></td>
 								<td><?php echo esc_html( isset( $fi['size'] ) ? size_format( (int) $fi['size'] ) : '' ); ?></td>
 								<td><?php echo esc_html( isset( $fi['type'] ) && $fi['type'] ? (string) $fi['type'] : '—' ); ?></td>
-								<?php $exists = CT_Forms_Admin::file_exists_safe( $fi['path'] ?? '' ); ?>
-								<td><?php if ( $exists ) : ?><span class="truitt-file-status truitt-file-status--ok"><?php echo esc_html__( 'OK', 'ct-forms' ); ?></span><?php else : ?><span class="truitt-file-status truitt-file-status--missing"><?php echo esc_html__( 'Missing', 'ct-forms' ); ?></span><?php endif; ?></td>
+								<?php $exists = self::file_exists_safe( $fi['path'] ?? '' ); ?>
+								<td>
+								<?php
+								if ( $exists ) :
+									?>
+									<span class="truitt-file-status truitt-file-status--ok"><?php echo esc_html__( 'OK', 'ct-forms' ); ?></span>
+									<?php
+else :
+	?>
+	<span class="truitt-file-status truitt-file-status--missing"><?php echo esc_html__( 'Missing', 'ct-forms' ); ?></span><?php endif; ?></td>
 								<td>
 									<?php if ( ! empty( $links[ $i ] ) ) : ?>
 										<a class="button button-small" href="<?php echo esc_url( $links[ $i ] ); ?>"><?php echo esc_html__( 'Download', 'ct-forms' ); ?></a>
@@ -1676,14 +1781,17 @@ private static function page_form_builder( $form_id ) {
 									<?php if ( current_user_can( 'ct_forms_manage' ) ) : ?>
 										<?php
 											$delete_nonce = wp_create_nonce( 'ct_forms_delete_' . (int) $entry_id . '_' . (string) $fid . '_' . (int) $i );
-											$delete_url = add_query_arg( array(
-												'action' => 'ct_forms_delete_file',
-												'entry_id' => (int) $entry_id,
-												'field_id' => (string) $fid,
-												'file_index' => (int) $i,
-												'_wpnonce' => $delete_nonce,
-												'_redirect' => $redirect_back,
-											), admin_url( 'admin-post.php' ) );
+											$delete_url   = add_query_arg(
+												array(
+													'action'   => 'ct_forms_delete_file',
+													'entry_id' => (int) $entry_id,
+													'field_id' => (string) $fid,
+													'file_index' => (int) $i,
+													'_wpnonce' => $delete_nonce,
+													'_redirect' => $redirect_back,
+												),
+												admin_url( 'admin-post.php' )
+											);
 										?>
 										<a class="button button-small" href="<?php echo esc_url( $delete_url ); ?>" onclick="return confirm('Delete this uploaded file? This cannot be undone.');" style="margin-left:6px;">
 											<?php echo esc_html__( 'Delete', 'ct-forms' ); ?>
@@ -1710,8 +1818,8 @@ private static function page_form_builder( $form_id ) {
 			</form>
 		</div>
 	</div>
-	<?php
-}
+		<?php
+	}
 
 	/**
 	 * resend_admin method.
@@ -1719,32 +1827,36 @@ private static function page_form_builder( $form_id ) {
 	 * @return mixed
 	 */
 	public static function resend_admin() {
-		if ( ! current_user_can( 'ct_forms_manage' ) ) { wp_die( 'Not allowed' ); }
+		if ( ! current_user_can( 'ct_forms_manage' ) ) {
+			wp_die( 'Not allowed' ); }
 
 		$entry_id = isset( $_POST['entry_id'] ) ? (int) $_POST['entry_id'] : 0;
-		if ( $entry_id <= 0 ) { wp_die( 'Invalid entry' ); }
+		if ( $entry_id <= 0 ) {
+			wp_die( 'Invalid entry' ); }
 
 		check_admin_referer( 'ct_forms_resend_admin_' . $entry_id );
 
 		$entry = CT_Forms_DB::get_entry( $entry_id );
-		if ( ! $entry ) { wp_die( 'Entry not found' ); }
+		if ( ! $entry ) {
+			wp_die( 'Entry not found' ); }
 
 		$form_settings = CT_Forms_CPT::get_form_settings( $entry['form_id'] );
 
 		// Send only admin email; do not resend autoresponder
-		$post = get_post( $entry['form_id'] );
+		$post      = get_post( $entry['form_id'] );
 		$form_name = $post ? $post->post_title : 'Form';
 
-		$tokens = array(
-			'{form_name}' => $form_name,
-			'{entry_id}' => (string) $entry_id,
+		$tokens     = array(
+			'{form_name}'    => $form_name,
+			'{entry_id}'     => (string) $entry_id,
 			'{submitted_at}' => $entry['submitted_at'],
 		);
 		$all_fields = '';
-		$data = isset( $entry['data'] ) && is_array( $entry['data'] ) ? $entry['data'] : array();
+		$data       = isset( $entry['data'] ) && is_array( $entry['data'] ) ? $entry['data'] : array();
 		foreach ( (array) $data as $k => $v ) {
-			if ( is_array( $v ) ) { $v = implode( ', ', $v ); }
-			$all_fields .= $k . ': ' . $v . "\n";
+			if ( is_array( $v ) ) {
+				$v = implode( ', ', $v ); }
+			$all_fields                    .= $k . ': ' . $v . "\n";
 			$tokens[ '{field:' . $k . '}' ] = (string) $v;
 		}
 		$tokens['{all_fields}'] = trim( $all_fields );
@@ -1762,7 +1874,7 @@ private static function page_form_builder( $form_id ) {
 		if ( $reply_to ) {
 			$headers[] = 'Reply-To: ' . $reply_to;
 		}
-		$from_name = sanitize_text_field( (string) $form_settings['from_name'] );
+		$from_name  = sanitize_text_field( (string) $form_settings['from_name'] );
 		$from_email = sanitize_email( (string) $form_settings['from_email'] );
 		if ( $from_email ) {
 			$headers[] = 'From: ' . $from_name . ' <' . $from_email . '>';
@@ -1770,10 +1882,10 @@ private static function page_form_builder( $form_id ) {
 
 		$sent = wp_mail( (string) $form_settings['to_email'], $subject, $body, $headers );
 
-		$mail_log = (array) $entry['mail_log'];
+		$mail_log                 = (array) $entry['mail_log'];
 		$mail_log['resend_admin'] = array(
 			'sent_at' => current_time( 'mysql' ),
-			'sent' => (bool) $sent,
+			'sent'    => (bool) $sent,
 		);
 		CT_Forms_DB::update_entry_mail_log( $entry_id, $mail_log );
 
@@ -1787,7 +1899,8 @@ private static function page_form_builder( $form_id ) {
 	 * @return mixed
 	 */
 	public static function page_settings() {
-		if ( ! current_user_can( 'ct_forms_manage' ) ) { wp_die( 'Not allowed' ); }
+		if ( ! current_user_can( 'ct_forms_manage' ) ) {
+			wp_die( 'Not allowed' ); }
 		$s = self::get_settings();
 		?>
 		<div class="wrap ct-forms-wrap">
@@ -1911,7 +2024,7 @@ private static function page_form_builder( $form_id ) {
 		$msg  = isset( $_GET['ct_support_msg'] ) ? sanitize_text_field( (string) $_GET['ct_support_msg'] ) : '';
 
 		// Build diagnostics text.
-		$theme = wp_get_theme();
+		$theme      = wp_get_theme();
 		$theme_line = $theme ? ( $theme->get( 'Name' ) . ' ' . $theme->get( 'Version' ) ) : '';
 
 		$plugins = array();
@@ -1925,7 +2038,7 @@ private static function page_form_builder( $form_id ) {
 			}
 		}
 
-		$diag = array();
+		$diag   = array();
 		$diag[] = 'CT Forms version: ' . CT_FORMS_VERSION;
 		$diag[] = 'Site: ' . home_url();
 		$diag[] = 'WP: ' . get_bloginfo( 'version' );
@@ -1955,10 +2068,12 @@ private static function page_form_builder( $form_id ) {
 
 				<div class="postbox" style="padding:16px;">
 					<h2 style="margin-top:0;"><?php esc_html_e( 'Get help', 'ct-forms' ); ?></h2>
-					<p><?php
+					<p>
+					<?php
 						/* translators: %s: support email address. */
 						echo esc_html( sprintf( __( 'Email %s or send a request below. Include diagnostics for fastest help.', 'ct-forms' ), $support_email ) );
-					?></p>
+					?>
+					</p>
 
 					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 						<?php wp_nonce_field( 'ct_forms_send_support' ); ?>
@@ -2038,7 +2153,14 @@ private static function page_form_builder( $form_id ) {
 		$diag    = isset( $_POST['ct_support_diag'] ) ? sanitize_textarea_field( wp_unslash( (string) $_POST['ct_support_diag'] ) ) : '';
 
 		if ( ! is_email( $email ) || '' === trim( $message ) ) {
-			$url = add_query_arg( array( 'page' => 'ct-forms-support', 'ct_support_sent' => '0', 'ct_support_msg' => rawurlencode( __( 'Please enter a valid email and message.', 'ct-forms' ) ) ), admin_url( 'admin.php' ) );
+			$url = add_query_arg(
+				array(
+					'page'            => 'ct-forms-support',
+					'ct_support_sent' => '0',
+					'ct_support_msg'  => rawurlencode( __( 'Please enter a valid email and message.', 'ct-forms' ) ),
+				),
+				admin_url( 'admin.php' )
+			);
 			wp_safe_redirect( $url );
 			exit;
 		}
@@ -2046,7 +2168,7 @@ private static function page_form_builder( $form_id ) {
 		$subject_line = $subject ? $subject : 'CT Forms Support Request';
 		$subject_line = 'CT Forms: ' . $subject_line;
 
-		$lines = array();
+		$lines   = array();
 		$lines[] = 'Name: ' . $name;
 		$lines[] = 'Email: ' . $email;
 		$lines[] = 'Site: ' . home_url();
@@ -2058,16 +2180,19 @@ private static function page_form_builder( $form_id ) {
 		$lines[] = 'Diagnostics:';
 		$lines[] = $diag;
 
-		$headers = array();
+		$headers   = array();
 		$headers[] = 'Reply-To: ' . $email;
 
 		$sent = wp_mail( $support_email, $subject_line, implode( "\n", $lines ), $headers );
 
-		$url = add_query_arg( array(
-			'page' => 'ct-forms-support',
-			'ct_support_sent' => $sent ? '1' : '0',
-			'ct_support_msg'  => rawurlencode( $sent ? __( 'Support request sent. Check your inbox for a reply.', 'ct-forms' ) : __( 'Support request could not be sent. Try emailing help@christruitt.com.', 'ct-forms' ) ),
-		), admin_url( 'admin.php' ) );
+		$url = add_query_arg(
+			array(
+				'page'            => 'ct-forms-support',
+				'ct_support_sent' => $sent ? '1' : '0',
+				'ct_support_msg'  => rawurlencode( $sent ? __( 'Support request sent. Check your inbox for a reply.', 'ct-forms' ) : __( 'Support request could not be sent. Try emailing help@christruitt.com.', 'ct-forms' ) ),
+			),
+			admin_url( 'admin.php' )
+		);
 
 		wp_safe_redirect( $url );
 		exit;
@@ -2079,14 +2204,14 @@ private static function page_form_builder( $form_id ) {
 	 * @return mixed
 	 */
 	public static function run_retention_cleanup() {
-		$s = self::get_settings();
+		$s    = self::get_settings();
 		$days = isset( $s['retention_days'] ) ? (int) $s['retention_days'] : 0;
 		if ( $days > 0 ) {
 			CT_Forms_DB::delete_entries_older_than_days( $days );
 		}
 	}
 
-	
+
 	/**
 	 * render_entries_simple_table method.
 	 *
@@ -2110,10 +2235,10 @@ private static function page_form_builder( $form_id ) {
 		$data_col    = CT_Forms_DB::entries_data_column();
 
 		$entries_cols = CT_Forms_DB::entries_columns();
-		$ua_col = in_array( 'user_agent', $entries_cols, true ) ? 'user_agent' : ( in_array( 'ua', $entries_cols, true ) ? 'ua' : '' );
+		$ua_col       = in_array( 'user_agent', $entries_cols, true ) ? 'user_agent' : ( in_array( 'ua', $entries_cols, true ) ? 'ua' : '' );
 
 		// Status column detection (supports legacy installs that used state/entry_status).
-		$status_col = in_array( 'status', $entries_cols, true ) ? 'status' : ( in_array( 'state', $entries_cols, true ) ? 'state' : ( in_array( 'entry_status', $entries_cols, true ) ? 'entry_status' : '' ) );
+		$status_col       = in_array( 'status', $entries_cols, true ) ? 'status' : ( in_array( 'state', $entries_cols, true ) ? 'state' : ( in_array( 'entry_status', $entries_cols, true ) ? 'entry_status' : '' ) );
 		$allowed_statuses = array( 'new', 'reviewed', 'follow_up', 'spam', 'archived' );
 
 		// Status filter (optional).
@@ -2125,16 +2250,22 @@ private static function page_form_builder( $form_id ) {
 			}
 		}
 
-		$select_cols = array();
+		$select_cols   = array();
 		$select_cols[] = "{$pk_col} AS id";
-		$select_cols[] = "form_id";
-		if ( $created_col ) { $select_cols[] = "{$created_col} AS created_at"; }
-		if ( $ip_col ) { $select_cols[] = "{$ip_col} AS ip_address"; }
-		if ( $page_col ) { $select_cols[] = "{$page_col} AS page_url"; }
-		if ( $data_col ) { $select_cols[] = "{$data_col} AS data_json"; }
+		$select_cols[] = 'form_id';
+		if ( $created_col ) {
+			$select_cols[] = "{$created_col} AS created_at"; }
+		if ( $ip_col ) {
+			$select_cols[] = "{$ip_col} AS ip_address"; }
+		if ( $page_col ) {
+			$select_cols[] = "{$page_col} AS page_url"; }
+		if ( $data_col ) {
+			$select_cols[] = "{$data_col} AS data_json"; }
 		// Attachments (files) column detection.
-		if ( in_array( 'files', $entries_cols, true ) ) { $select_cols[] = "files AS files_json"; }
-		if ( $status_col ) { $select_cols[] = "{$status_col} AS status"; }
+		if ( in_array( 'files', $entries_cols, true ) ) {
+			$select_cols[] = 'files AS files_json'; }
+		if ( $status_col ) {
+			$select_cols[] = "{$status_col} AS status"; }
 
 		$select_cols_sql = implode( ', ', $select_cols );
 
@@ -2148,22 +2279,26 @@ private static function page_form_builder( $form_id ) {
 
 		if ( $form_id ) {
 			$where_parts[] = 'form_id = %d';
-			$args[] = (int) $form_id;
+			$args[]        = (int) $form_id;
 		}
 
 		if ( $status_col && $status_filter !== '' ) {
 			$where_parts[] = "{$status_col} = %s";
-			$args[] = $status_filter;
+			$args[]        = $status_filter;
 		}
 
 		if ( $search !== '' ) {
 			$like = '%' . $wpdb->esc_like( $search ) . '%';
 
 			$search_cols = array();
-			if ( $data_col ) { $search_cols[] = "{$data_col} LIKE %s"; }
-			if ( $ip_col ) { $search_cols[] = "{$ip_col} LIKE %s"; }
-			if ( $page_col ) { $search_cols[] = "{$page_col} LIKE %s"; }
-			if ( $ua_col ) { $search_cols[] = "{$ua_col} LIKE %s"; }
+			if ( $data_col ) {
+				$search_cols[] = "{$data_col} LIKE %s"; }
+			if ( $ip_col ) {
+				$search_cols[] = "{$ip_col} LIKE %s"; }
+			if ( $page_col ) {
+				$search_cols[] = "{$page_col} LIKE %s"; }
+			if ( $ua_col ) {
+				$search_cols[] = "{$ua_col} LIKE %s"; }
 
 			if ( ! empty( $search_cols ) ) {
 				$where_parts[] = '(' . implode( ' OR ', $search_cols ) . ')';
@@ -2184,7 +2319,7 @@ private static function page_form_builder( $form_id ) {
 		$total_items = (int) $wpdb->get_var( $count_sql );
 
 		// Fetch page of results.
-		$sql = 'SELECT ' . $select_cols_sql . ' FROM ' . $entries_table . ' ' . $where_sql . ' ORDER BY ' . $pk_col . ' DESC LIMIT %d OFFSET %d';
+		$sql         = 'SELECT ' . $select_cols_sql . ' FROM ' . $entries_table . ' ' . $where_sql . ' ORDER BY ' . $pk_col . ' DESC LIMIT %d OFFSET %d';
 		$args_page   = $args;
 		$args_page[] = (int) $per_page;
 		$args_page[] = (int) $offset;
@@ -2208,10 +2343,10 @@ private static function page_form_builder( $form_id ) {
 			}
 		}
 
-
 		// Status views (All / New / Follow-up / Reviewed / Spam / Archived).
 		$base_args_for_views = array( 'page' => 'ct-forms-entries' );
-		if ( $form_id ) { $base_args_for_views['form_id'] = (int) $form_id; }
+		if ( $form_id ) {
+			$base_args_for_views['form_id'] = (int) $form_id; }
 
 		$counts = array();
 		if ( $status_col ) {
@@ -2222,7 +2357,7 @@ private static function page_form_builder( $form_id ) {
 				$count_args[]  = (int) $form_id;
 			}
 			$count_where_sql = $count_where ? ( 'WHERE ' . implode( ' AND ', $count_where ) ) : '';
-			$count_sql = "SELECT {$status_col} AS st, COUNT(*) AS c FROM {$entries_table} {$count_where_sql} GROUP BY {$status_col}";
+			$count_sql       = "SELECT {$status_col} AS st, COUNT(*) AS c FROM {$entries_table} {$count_where_sql} GROUP BY {$status_col}";
 			if ( ! empty( $count_args ) ) {
 				$count_sql = $wpdb->prepare( $count_sql, ...$count_args );
 			}
@@ -2231,13 +2366,15 @@ private static function page_form_builder( $form_id ) {
 				foreach ( $count_rows as $cr ) {
 					$st = isset( $cr['st'] ) ? sanitize_key( (string) $cr['st'] ) : '';
 					$c  = isset( $cr['c'] ) ? (int) $cr['c'] : 0;
-					if ( $st !== '' ) { $counts[ $st ] = $c; }
+					if ( $st !== '' ) {
+						$counts[ $st ] = $c; }
 				}
 			}
 		}
 
 		$all_count = 0;
-		foreach ( $counts as $c ) { $all_count += (int) $c; }
+		foreach ( $counts as $c ) {
+			$all_count += (int) $c; }
 
 		$views = array(
 			''          => __( 'All', 'ct-forms' ),
@@ -2252,8 +2389,9 @@ private static function page_form_builder( $form_id ) {
 		$i = 0;
 		foreach ( $views as $key => $label ) {
 			$is_current = ( $key === '' && $status_filter === '' ) || ( $key !== '' && $status_filter === $key );
-			$args_view = $base_args_for_views;
-			if ( $key !== '' ) { $args_view['status'] = $key; }
+			$args_view  = $base_args_for_views;
+			if ( $key !== '' ) {
+				$args_view['status'] = $key; }
 			// Do not carry over search term into view counts by default.
 			$url = add_query_arg( $args_view, admin_url( 'admin.php' ) );
 
@@ -2267,8 +2405,9 @@ private static function page_form_builder( $form_id ) {
 			}
 
 			echo '<li class="' . esc_attr( $key === '' ? 'all' : $key ) . '">' . $text . '</li>';
-			$i++;
-			if ( $i < count( $views ) ) { echo ' | '; }
+			++$i;
+			if ( $i < count( $views ) ) {
+				echo ' | '; }
 		}
 		echo '</ul>';
 
@@ -2298,10 +2437,14 @@ private static function page_form_builder( $form_id ) {
 
 		// Bulk actions + table.
 		$redirect_args = array( 'page' => 'ct-forms-entries' );
-		if ( $form_id ) { $redirect_args['form_id'] = (int) $form_id; }
-		if ( $search !== '' ) { $redirect_args['s'] = $search; }
-		if ( $status_filter !== '' ) { $redirect_args['status'] = $status_filter; }
-		if ( $paged > 1 ) { $redirect_args['paged'] = (int) $paged; }
+		if ( $form_id ) {
+			$redirect_args['form_id'] = (int) $form_id; }
+		if ( $search !== '' ) {
+			$redirect_args['s'] = $search; }
+		if ( $status_filter !== '' ) {
+			$redirect_args['status'] = $status_filter; }
+		if ( $paged > 1 ) {
+			$redirect_args['paged'] = (int) $paged; }
 		$redirect_url = add_query_arg( $redirect_args, admin_url( 'admin.php' ) );
 
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
@@ -2353,19 +2496,20 @@ private static function page_form_builder( $form_id ) {
 						$form_title = '–';
 					}
 				}
-$submitted_html = self::format_submitted_cell_html( $row['created_at'] ?? '' );
+				$submitted_html = self::format_submitted_cell_html( $row['created_at'] ?? '' );
 
 				$status = isset( $row['status'] ) ? sanitize_key( (string) $row['status'] ) : 'new';
-				if ( $status === '' || ! in_array( $status, $allowed_statuses, true ) ) { $status = 'new'; }
+				if ( $status === '' || ! in_array( $status, $allowed_statuses, true ) ) {
+					$status = 'new'; }
 				$status_label = self::get_status_label( $status );
 				$status_html  = '<span class="truitt-entry-status truitt-entry-status--' . esc_attr( $status ) . '">' . esc_html( $status_label ) . '</span>';
 
 				$ip = isset( $row['ip_address'] ) ? (string) $row['ip_address'] : '';
 
 				// Attachments indicator.
-				$has_files  = false;
-				$files_arr  = array();
-				$files_raw  = isset( $row['files_json'] ) ? $row['files_json'] : '';
+				$has_files = false;
+				$files_arr = array();
+				$files_raw = isset( $row['files_json'] ) ? $row['files_json'] : '';
 
 				if ( is_string( $files_raw ) ) {
 					$trim = trim( $files_raw );
@@ -2411,35 +2555,42 @@ $submitted_html = self::format_submitted_cell_html( $row['created_at'] ?? '' );
 
 						if ( $first_field_id !== '' ) {
 							$download_nonce = wp_create_nonce( 'ct_forms_download_' . (int) $id . '_' . $first_field_id . '_' . (int) $first_idx );
-							$link_url = add_query_arg( array(
-								'action'     => 'ct_forms_download',
-								'entry_id'   => (int) $id,
-								'field_id'   => $first_field_id,
-								'file_index' => (int) $first_idx,
-								'_wpnonce'   => $download_nonce,
-							), admin_url( 'admin-post.php' ) );
+							$link_url       = add_query_arg(
+								array(
+									'action'     => 'ct_forms_download',
+									'entry_id'   => (int) $id,
+									'field_id'   => $first_field_id,
+									'file_index' => (int) $first_idx,
+									'_wpnonce'   => $download_nonce,
+								),
+								admin_url( 'admin-post.php' )
+							);
 						}
 					}
 
 					$attachments_html = '<a href="' . esc_url( $link_url ) . '" target="_blank" rel="noopener noreferrer">' . $clip . '</a>';
 				}
 				$summary = '';
-				$raw = isset( $row['data_json'] ) ? $row['data_json'] : '';
+				$raw     = isset( $row['data_json'] ) ? $row['data_json'] : '';
 				if ( is_string( $raw ) && $raw !== '' ) {
 					$data = json_decode( $raw, true );
 					if ( ! is_array( $data ) ) {
 						// Try serialized PHP.
 						$maybe = @maybe_unserialize( $raw );
-						if ( is_array( $maybe ) ) { $data = $maybe; }
+						if ( is_array( $maybe ) ) {
+							$data = $maybe; }
 					}
 					if ( is_array( $data ) ) {
 						$parts = array();
 						foreach ( $data as $k => $v ) {
-							if ( is_array( $v ) || is_object( $v ) ) { continue; }
+							if ( is_array( $v ) || is_object( $v ) ) {
+								continue; }
 							$v = trim( (string) $v );
-							if ( $v === '' ) { continue; }
+							if ( $v === '' ) {
+								continue; }
 							$parts[] = $v;
-							if ( count( $parts ) >= 3 ) { break; }
+							if ( count( $parts ) >= 3 ) {
+								break; }
 						}
 						$summary = implode( ' – ', $parts );
 					}
@@ -2456,18 +2607,25 @@ $submitted_html = self::format_submitted_cell_html( $row['created_at'] ?? '' );
 				if ( $id && current_user_can( 'ct_forms_manage' ) ) {
 					// Preserve current filters in redirect.
 					$redirect_args = array( 'page' => 'ct-forms-entries' );
-					if ( $form_id ) { $redirect_args['form_id'] = (int) $form_id; }
-					if ( $search !== '' ) { $redirect_args['s'] = $search; }
-		if ( $status_filter !== '' ) { $redirect_args['status'] = $status_filter; }
-					if ( $paged > 1 ) { $redirect_args['paged'] = (int) $paged; }
+					if ( $form_id ) {
+						$redirect_args['form_id'] = (int) $form_id; }
+					if ( $search !== '' ) {
+						$redirect_args['s'] = $search; }
+					if ( $status_filter !== '' ) {
+						$redirect_args['status'] = $status_filter; }
+					if ( $paged > 1 ) {
+						$redirect_args['paged'] = (int) $paged; }
 					$redirect_url = add_query_arg( $redirect_args, admin_url( 'admin.php' ) );
 
-					$delete_url = add_query_arg( array(
-						'action'    => 'ct_forms_delete_entry',
-						'entry_id'  => (int) $id,
-						'_wpnonce'  => wp_create_nonce( 'ct_forms_delete_entry_' . (int) $id ),
-						'_redirect' => $redirect_url,
-					), admin_url( 'admin-post.php' ) );
+					$delete_url    = add_query_arg(
+						array(
+							'action'    => 'ct_forms_delete_entry',
+							'entry_id'  => (int) $id,
+							'_wpnonce'  => wp_create_nonce( 'ct_forms_delete_entry_' . (int) $id ),
+							'_redirect' => $redirect_url,
+						),
+						admin_url( 'admin-post.php' )
+					);
 					$actions_html .= '<a class="button button-small" href="' . esc_url( $delete_url ) . '" onclick="return confirm(\'' . esc_js( __( 'Delete this entry? This cannot be undone.', 'ct-forms' ) ) . '\');">' . esc_html__( 'Delete', 'ct-forms' ) . '</a>';
 				}
 
@@ -2507,21 +2665,26 @@ $submitted_html = self::format_submitted_cell_html( $row['created_at'] ?? '' );
 
 		// Pagination.
 		$total_pages = ( $per_page > 0 ) ? (int) ceil( $total_items / $per_page ) : 1;
-		if ( $total_pages < 1 ) { $total_pages = 1; }
+		if ( $total_pages < 1 ) {
+			$total_pages = 1; }
 
 		$base_url_args = array( 'page' => 'ct-forms-entries' );
-		if ( $form_id ) { $base_url_args['form_id'] = (int) $form_id; }
-		if ( $search !== '' ) { $base_url_args['s'] = $search; }
+		if ( $form_id ) {
+			$base_url_args['form_id'] = (int) $form_id; }
+		if ( $search !== '' ) {
+			$base_url_args['s'] = $search; }
 
 		echo '<div class="tablenav"><div class="tablenav-pages" style="margin:10px 0;">';
-		echo paginate_links( array(
-			'base'      => add_query_arg( array_merge( $base_url_args, array( 'paged' => '%#%' ) ), admin_url( 'admin.php' ) ),
-			'format'    => '',
-			'prev_text' => '«',
-			'next_text' => '»',
-			'total'     => $total_pages,
-			'current'   => $paged,
-		) );
+		echo paginate_links(
+			array(
+				'base'      => add_query_arg( array_merge( $base_url_args, array( 'paged' => '%#%' ) ), admin_url( 'admin.php' ) ),
+				'format'    => '',
+				'prev_text' => '«',
+				'next_text' => '»',
+				'total'     => $total_pages,
+				'current'   => $paged,
+			)
+		);
 		echo '</div></div>';
 	}
 	/**
@@ -2534,34 +2697,39 @@ $submitted_html = self::format_submitted_cell_html( $row['created_at'] ?? '' );
 		global $wpdb;
 
 		$table = CT_Forms_DB::entries_table();
-		
-		$pk_col = CT_Forms_DB::entries_pk_column();
-		$created_col = CT_Forms_DB::entries_created_column();
-		$ip_col = CT_Forms_DB::entries_ip_column();
-		$page_col = CT_Forms_DB::entries_page_url_column();
-		$data_col = CT_Forms_DB::entries_data_column();
 
-		$select_cols = array();
+		$pk_col      = CT_Forms_DB::entries_pk_column();
+		$created_col = CT_Forms_DB::entries_created_column();
+		$ip_col      = CT_Forms_DB::entries_ip_column();
+		$page_col    = CT_Forms_DB::entries_page_url_column();
+		$data_col    = CT_Forms_DB::entries_data_column();
+
+		$select_cols   = array();
 		$select_cols[] = "{$pk_col} AS id";
-		$select_cols[] = "form_id";
-		if ( $created_col ) { $select_cols[] = "{$created_col} AS created_at"; }
-		if ( $ip_col ) { $select_cols[] = "{$ip_col} AS ip_address"; }
-		if ( $page_col ) { $select_cols[] = "{$page_col} AS page_url"; }
-		if ( $data_col ) { $select_cols[] = "{$data_col} AS data_json"; }
+		$select_cols[] = 'form_id';
+		if ( $created_col ) {
+			$select_cols[] = "{$created_col} AS created_at"; }
+		if ( $ip_col ) {
+			$select_cols[] = "{$ip_col} AS ip_address"; }
+		if ( $page_col ) {
+			$select_cols[] = "{$page_col} AS page_url"; }
+		if ( $data_col ) {
+			$select_cols[] = "{$data_col} AS data_json"; }
 		$select_cols_sql = implode( ', ', $select_cols );
-		$pk = $pk_col;
+		$pk              = $pk_col;
 
 		$where = '';
 		$args  = array();
 		if ( $form_id > 0 ) {
-			$where = 'WHERE form_id = %d';
+			$where  = 'WHERE form_id = %d';
 			$args[] = (int) $form_id;
 		}
 
 		// Simple, most-compatible query.
-		$sql = "SELECT * FROM {$table} " . ( $where ? $wpdb->prepare( $where, ...$args ) : '' ) . " ORDER BY {$pk} DESC LIMIT 50";
+		$sql  = "SELECT * FROM {$table} " . ( $where ? $wpdb->prepare( $where, ...$args ) : '' ) . " ORDER BY {$pk} DESC LIMIT 50";
 		$rows = $wpdb->get_results( $sql, ARRAY_A );
-		if ( ! is_array( $rows ) ) { $rows = array(); }
+		if ( ! is_array( $rows ) ) {
+			$rows = array(); }
 
 		echo '<h2 style="margin-top:18px;">Fallback entries view</h2>';
 		echo '<p class="description">The standard entries table did not render on this server. Showing up to the most recent 50 entries.</p>';
@@ -2580,11 +2748,11 @@ $submitted_html = self::format_submitted_cell_html( $row['created_at'] ?? '' );
 		echo '</tr></thead><tbody>';
 
 		foreach ( $rows as $r ) {
-			$id = isset( $r[ $pk ] ) ? (int) $r[ $pk ] : 0;
-			$fid = isset( $r['form_id'] ) ? (int) $r['form_id'] : 0;
-			$status = isset( $r['status'] ) ? (string) $r['status'] : '';
+			$id        = isset( $r[ $pk ] ) ? (int) $r[ $pk ] : 0;
+			$fid       = isset( $r['form_id'] ) ? (int) $r['form_id'] : 0;
+			$status    = isset( $r['status'] ) ? (string) $r['status'] : '';
 			$submitted = isset( $r['submitted_at'] ) ? (string) $r['submitted_at'] : '';
-			$page = isset( $r['page_url'] ) ? (string) $r['page_url'] : '';
+			$page      = isset( $r['page_url'] ) ? (string) $r['page_url'] : '';
 
 			$form_title = $fid ? get_the_title( $fid ) : '';
 			$form_title = $form_title ? $form_title : ( $fid ? ( 'Form #' . $fid ) : '–' );
@@ -2610,10 +2778,11 @@ $submitted_html = self::format_submitted_cell_html( $row['created_at'] ?? '' );
 	 */
 	private static function is_safe_upload_path( $path ) {
 		$uploads = wp_upload_dir();
-		$base = isset( $uploads['basedir'] ) ? (string) $uploads['basedir'] : '';
-		if ( '' === $base ) { return false; }
+		$base    = isset( $uploads['basedir'] ) ? (string) $uploads['basedir'] : '';
+		if ( '' === $base ) {
+			return false; }
 
-		$base = wp_normalize_path( $base );
+		$base   = wp_normalize_path( $base );
 		$target = wp_normalize_path( (string) $path );
 
 		$allowed_dir = trailingslashit( $base ) . 'ct-forms/';
@@ -2622,8 +2791,10 @@ $submitted_html = self::format_submitted_cell_html( $row['created_at'] ?? '' );
 		$real_allowed = realpath( $allowed_dir );
 		$real_target  = realpath( $target );
 
-		if ( $real_allowed ) { $allowed_dir = wp_normalize_path( $real_allowed ); }
-		if ( $real_target )  { $target = wp_normalize_path( $real_target ); }
+		if ( $real_allowed ) {
+			$allowed_dir = wp_normalize_path( $real_allowed ); }
+		if ( $real_target ) {
+			$target = wp_normalize_path( $real_target ); }
 
 		return ( 0 === strpos( $target, trailingslashit( $allowed_dir ) ) );
 	}
@@ -2636,9 +2807,10 @@ $submitted_html = self::format_submitted_cell_html( $row['created_at'] ?? '' );
 	 */
 	private static function file_exists_safe( $path ) {
 		$path = (string) $path;
-		if ( '' === $path ) { return false; }
-		if ( ! self::is_safe_upload_path( $path ) ) { return false; }
+		if ( '' === $path ) {
+			return false; }
+		if ( ! self::is_safe_upload_path( $path ) ) {
+			return false; }
 		return file_exists( $path );
 	}
-
 }

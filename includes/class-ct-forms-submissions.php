@@ -57,14 +57,17 @@ final class CT_Forms_Submissions {
 		}
 
 		$verify_url = 'https://www.google.com/recaptcha/api/siteverify';
-		$response = wp_remote_post( $verify_url, array(
-			'body' => array(
-				'secret'   => $secret_key,
-				'response' => $recaptcha_response,
-				'remoteip' => isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : '',
-			),
-			'timeout' => 10,
-		) );
+		$response   = wp_remote_post(
+			$verify_url,
+			array(
+				'body'    => array(
+					'secret'   => $secret_key,
+					'response' => $recaptcha_response,
+					'remoteip' => isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : '',
+				),
+				'timeout' => 10,
+			)
+		);
 
 		if ( is_wp_error( $response ) ) {
 			throw new Exception( 'recaptcha_request_failed' );
@@ -80,8 +83,10 @@ final class CT_Forms_Submissions {
 		// v3 adds score + action – enforce if configured
 		if ( 'v3' === $type ) {
 			$threshold = isset( $settings['recaptcha_v3_threshold'] ) ? floatval( $settings['recaptcha_v3_threshold'] ) : 0.5;
-			if ( $threshold < 0 ) { $threshold = 0; }
-			if ( $threshold > 1 ) { $threshold = 1; }
+			if ( $threshold < 0 ) {
+				$threshold = 0; }
+			if ( $threshold > 1 ) {
+				$threshold = 1; }
 
 			$score = isset( $data['score'] ) ? floatval( $data['score'] ) : 0.0;
 			if ( $score < $threshold ) {
@@ -313,7 +318,7 @@ final class CT_Forms_Submissions {
 		}
 
 		$bulk_action = isset( $_POST['bulk_action'] ) ? sanitize_key( (string) $_POST['bulk_action'] ) : '';
-		$selected = isset( $_POST['selected'] ) ? (array) $_POST['selected'] : array();
+		$selected    = isset( $_POST['selected'] ) ? (array) $_POST['selected'] : array();
 
 		$redirect = isset( $_POST['_redirect'] ) ? esc_url_raw( (string) $_POST['_redirect'] ) : '';
 		if ( '' === $redirect ) {
@@ -329,17 +334,20 @@ final class CT_Forms_Submissions {
 
 		foreach ( $selected as $token_raw ) {
 			$token = sanitize_text_field( wp_unslash( (string) $token_raw ) );
-			if ( '' === $token ) { continue; }
+			if ( '' === $token ) {
+				continue; }
 
 			// Token format: entry_id|field_id|idx
 			$parts = explode( '|', $token );
-			if ( count( $parts ) < 3 ) { continue; }
+			if ( count( $parts ) < 3 ) {
+				continue; }
 
-			$entry_id = (int) $parts[0];
-			$field_id = sanitize_key( (string) $parts[1] );
+			$entry_id   = (int) $parts[0];
+			$field_id   = sanitize_key( (string) $parts[1] );
 			$file_index = max( 0, (int) $parts[2] );
 
-			if ( $entry_id <= 0 || '' === $field_id ) { continue; }
+			if ( $entry_id <= 0 || '' === $field_id ) {
+				continue; }
 
 			$entry = CT_Forms_DB::get_entry( $entry_id );
 			if ( ! $entry || empty( $entry['files'] ) || ! is_array( $entry['files'] ) ) {
@@ -358,7 +366,7 @@ final class CT_Forms_Submissions {
 				continue;
 			}
 
-			$target = $files[ $lookup_key ];
+			$target   = $files[ $lookup_key ];
 			$is_multi = ( is_array( $target ) && isset( $target[0] ) );
 			$file_obj = $is_multi ? ( $target[ $file_index ] ?? null ) : $target;
 
@@ -383,10 +391,16 @@ final class CT_Forms_Submissions {
 			}
 
 			CT_Forms_DB::update_entry_files( $entry_id, $files );
-			$deleted++;
+			++$deleted;
 		}
 
-		$redirect = add_query_arg( array( 'ct_forms_bulk_deleted' => 1, 'ct_forms_bulk_deleted_count' => $deleted ), $redirect );
+		$redirect = add_query_arg(
+			array(
+				'ct_forms_bulk_deleted'       => 1,
+				'ct_forms_bulk_deleted_count' => $deleted,
+			),
+			$redirect
+		);
 		wp_safe_redirect( $redirect );
 		exit;
 	}
@@ -398,7 +412,9 @@ final class CT_Forms_Submissions {
 	 */
 	public static function handle_submit() {
 		$form_id = isset( $_POST['ct_form_id'] ) ? (int) $_POST['ct_form_id'] : 0;
-		if ( $form_id <= 0 ) { wp_safe_redirect( home_url() ); exit; }
+		if ( $form_id <= 0 ) {
+			wp_safe_redirect( home_url() );
+			exit; }
 
 		$nonce = isset( $_POST['truitt_nonce'] ) ? (string) $_POST['truitt_nonce'] : '';
 		if ( ! wp_verify_nonce( $nonce, 'ct_forms_submit_' . $form_id ) ) {
@@ -419,19 +435,19 @@ final class CT_Forms_Submissions {
 		}
 
 		// Time-to-submit check (default threshold 2 seconds)
-		$ts = isset( $_POST['truitt_ts'] ) ? (int) $_POST['truitt_ts'] : 0;
+		$ts          = isset( $_POST['truitt_ts'] ) ? (int) $_POST['truitt_ts'] : 0;
 		$min_seconds = (int) apply_filters( 'ct_forms_min_seconds_to_submit', 2, $form_id );
 		if ( $ts > 0 && ( time() - $ts ) < $min_seconds ) {
 			self::redirect_success( $form_id ); // silently succeed
 		}
 
 		$settings_global = CT_Forms_Admin::get_settings();
-		$rate_limit = isset( $settings_global['rate_limit'] ) ? (int) $settings_global['rate_limit'] : 10;
-		$rate_window = isset( $settings_global['rate_window_minutes'] ) ? (int) $settings_global['rate_window_minutes'] : 10;
+		$rate_limit      = isset( $settings_global['rate_limit'] ) ? (int) $settings_global['rate_limit'] : 10;
+		$rate_window     = isset( $settings_global['rate_window_minutes'] ) ? (int) $settings_global['rate_window_minutes'] : 10;
 
 		if ( $rate_limit > 0 && $rate_window > 0 ) {
-			$ip = self::get_ip();
-			$key = 'ct_forms_rl_' . md5( $ip . '_' . $form_id );
+			$ip    = self::get_ip();
+			$key   = 'ct_forms_rl_' . md5( $ip . '_' . $form_id );
 			$count = (int) get_transient( $key );
 			if ( $count >= $rate_limit ) {
 				self::redirect_error( $form_id, 'rate_limit' );
@@ -439,24 +455,25 @@ final class CT_Forms_Submissions {
 			set_transient( $key, $count + 1, MINUTE_IN_SECONDS * $rate_window );
 		}
 
-		$def = CT_Forms_CPT::get_form_definition( $form_id );
+		$def           = CT_Forms_CPT::get_form_definition( $form_id );
 		$form_settings = CT_Forms_CPT::get_form_settings( $form_id );
 
 		// CONFIG VALIDATION
 		if ( empty( $form_settings['to_email'] ) || ! is_email( $form_settings['to_email'] ) ) {
 			self::redirect_error( $form_id, 'config_to_email' );
 		}
-		$data = array();
-		$errors = array();
+		$data     = array();
+		$errors   = array();
 		$warnings = array();
 
 		foreach ( $def['fields'] as $field ) {
 			$fid = isset( $field['id'] ) ? sanitize_key( $field['id'] ) : '';
-			if ( '' === $fid ) { continue; }
+			if ( '' === $fid ) {
+				continue; }
 
-			$type = isset( $field['type'] ) ? sanitize_key( $field['type'] ) : 'text';
+			$type     = isset( $field['type'] ) ? sanitize_key( $field['type'] ) : 'text';
 			$required = ! empty( $field['required'] );
-			$name = 'truitt_field_' . $fid;
+			$name     = 'truitt_field_' . $fid;
 
 			if ( 'file' === $type ) {
 				// handle later
@@ -472,7 +489,14 @@ final class CT_Forms_Submissions {
 			if ( 'checkboxes' === $type ) {
 				$val = isset( $_POST[ $name ] ) ? (array) $_POST[ $name ] : array();
 				$val = array_map( 'sanitize_text_field', $val );
-				$val = array_values( array_filter( $val, function( $v ){ return '' !== trim( $v ); } ) );
+				$val = array_values(
+					array_filter(
+						$val,
+						function ( $v ) {
+							return '' !== trim( $v );
+						}
+					)
+				);
 				if ( $required && empty( $val ) ) {
 					$errors[ $fid ] = 'required';
 				}
@@ -509,8 +533,8 @@ final class CT_Forms_Submissions {
 			self::redirect_error( $form_id, 'upload' );
 		}
 
-		$files = isset( $file_result['files'] ) ? (array) $file_result['files'] : array();
-		$file_errors = isset( $file_result['errors'] ) ? (array) $file_result['errors'] : array();
+		$files         = isset( $file_result['files'] ) ? (array) $file_result['files'] : array();
+		$file_errors   = isset( $file_result['errors'] ) ? (array) $file_result['errors'] : array();
 		$file_warnings = isset( $file_result['warnings'] ) ? (array) $file_result['warnings'] : array();
 
 		if ( ! empty( $file_errors ) ) {
@@ -521,9 +545,12 @@ final class CT_Forms_Submissions {
 		}
 
 		if ( ! empty( $errors ) ) {
-			$fb_token = self::store_form_feedback( $form_id, array(
-				'errors' => $errors,
-			) );
+			$fb_token = self::store_form_feedback(
+				$form_id,
+				array(
+					'errors' => $errors,
+				)
+			);
 			self::redirect_error( $form_id, 'validation', array( 'ct_forms_fb' => $fb_token ) );
 		}
 
@@ -565,9 +592,12 @@ final class CT_Forms_Submissions {
 		}
 
 		if ( ! empty( $warnings ) ) {
-			$fb_token = self::store_form_feedback( $form_id, array(
-				'warnings' => $warnings,
-			) );
+			$fb_token = self::store_form_feedback(
+				$form_id,
+				array(
+					'warnings' => $warnings,
+				)
+			);
 			self::redirect_success( $form_id, array( 'ct_forms_fb' => $fb_token ) );
 		}
 
@@ -583,7 +613,8 @@ final class CT_Forms_Submissions {
 	 */
 	private static function redirect_success( $form_id, $extra_args = array() ) {
 		$url = wp_get_referer();
-		if ( ! $url ) { $url = home_url(); }
+		if ( ! $url ) {
+			$url = home_url(); }
 		$url = remove_query_arg( array( 'ct_forms_success', 'ct_forms_error', 'ct_forms_error_code', 'ct_forms_fb' ), $url );
 		$url = add_query_arg( 'ct_forms_success', (int) $form_id, $url );
 
@@ -603,10 +634,11 @@ final class CT_Forms_Submissions {
 	 */
 	private static function redirect_error( $form_id, $code = 'unknown', $extra_args = array() ) {
 		$url = wp_get_referer();
-		if ( ! $url ) { $url = home_url(); }
-		$url = remove_query_arg( array( 'ct_forms_success', 'ct_forms_error', 'ct_forms_error_code', 'ct_forms_fb' ), $url );
+		if ( ! $url ) {
+			$url = home_url(); }
+		$url  = remove_query_arg( array( 'ct_forms_success', 'ct_forms_error', 'ct_forms_error_code', 'ct_forms_fb' ), $url );
 		$args = array(
-			'ct_forms_error' => (int) $form_id,
+			'ct_forms_error'      => (int) $form_id,
 			'ct_forms_error_code' => sanitize_key( (string) $code ),
 		);
 		if ( is_array( $extra_args ) && ! empty( $extra_args ) ) {
@@ -626,7 +658,7 @@ final class CT_Forms_Submissions {
 	 */
 	private static function store_form_feedback( $form_id, $payload ) {
 		$token = wp_generate_uuid4();
-		$key = 'ct_forms_fb_' . (int) $form_id . '_' . $token;
+		$key   = 'ct_forms_fb_' . (int) $form_id . '_' . $token;
 		set_transient( $key, $payload, 10 * MINUTE_IN_SECONDS );
 		return $token;
 	}
@@ -643,14 +675,14 @@ final class CT_Forms_Submissions {
 		if ( '' === $token ) {
 			return array();
 		}
-		$key = 'ct_forms_fb_' . (int) $form_id . '_' . $token;
+		$key     = 'ct_forms_fb_' . (int) $form_id . '_' . $token;
 		$payload = get_transient( $key );
 		if ( false !== $payload ) {
 			delete_transient( $key );
 		}
 		return is_array( $payload ) ? $payload : array();
 	}
-	
+
 	/**
 	 * handle_file_uploads_detailed method.
 	 *
@@ -658,8 +690,8 @@ final class CT_Forms_Submissions {
 	 * @return mixed
 	 */
 	private static function handle_file_uploads_detailed( $fields ) {
-		$out = array();
-		$errors = array();
+		$out      = array();
+		$errors   = array();
 		$warnings = array();
 
 		if ( empty( $_FILES ) ) {
@@ -676,7 +708,11 @@ final class CT_Forms_Submissions {
 					$errors[ $fid ] = array( 'This field is required.' );
 				}
 			}
-			return array( 'files' => $out, 'errors' => $errors, 'warnings' => $warnings );
+			return array(
+				'files'    => $out,
+				'errors'   => $errors,
+				'warnings' => $warnings,
+			);
 		}
 
 		$settings = CT_Forms_Admin::get_settings();
@@ -690,9 +726,12 @@ final class CT_Forms_Submissions {
 		$allowed_exts_global = array();
 		if ( ! empty( $settings['allowed_mimes'] ) ) {
 			$allowed_exts_global = array_filter( array_map( 'trim', explode( ',', strtolower( (string) $settings['allowed_mimes'] ) ) ) );
-			$allowed_exts_global = array_map( function( $e ) {
-				return ltrim( $e, '.' );
-			}, $allowed_exts_global );
+			$allowed_exts_global = array_map(
+				function ( $e ) {
+					return ltrim( $e, '.' );
+				},
+				$allowed_exts_global
+			);
 		}
 
 		$global_mimes_map = self::build_mimes_map_from_exts( $allowed_exts_global );
@@ -734,7 +773,7 @@ final class CT_Forms_Submissions {
 
 			// Back-compat: older builds may have used the raw field id as the file input name.
 			$file_struct = isset( $_FILES[ $input_name ] ) ? $_FILES[ $input_name ] : $_FILES[ $fid ];
-			$items = self::normalize_files_array( $file_struct );
+			$items       = self::normalize_files_array( $file_struct );
 
 			if ( empty( $items ) ) {
 				if ( ! empty( $field['required'] ) ) {
@@ -748,7 +787,7 @@ final class CT_Forms_Submissions {
 			$saved = array();
 
 			$field_required = ! empty( $field['required'] );
-			$rejected = array();
+			$rejected       = array();
 
 			foreach ( $items as $file ) {
 				if ( ! isset( $file['error'] ) ) {
@@ -784,7 +823,7 @@ final class CT_Forms_Submissions {
 					$check = wp_check_filetype_and_ext( $file['tmp_name'], $file['name'], $mimes_map );
 					if ( empty( $check['ext'] ) || empty( $check['type'] ) ) {
 						$allowed_list = ! empty( $allowed_exts ) ? implode( ', ', array_map( 'sanitize_text_field', (array) $allowed_exts ) ) : '';
-						$msg = 'File type not allowed (' . basename( (string) $file['name'] ) . ').';
+						$msg          = 'File type not allowed (' . basename( (string) $file['name'] ) . ').';
 						if ( $allowed_list ) {
 							$msg .= ' Allowed: ' . $allowed_list . '.';
 						}
@@ -856,7 +895,11 @@ final class CT_Forms_Submissions {
 			}
 		}
 
-		return array( 'files' => $out, 'errors' => $errors, 'warnings' => $warnings );
+		return array(
+			'files'    => $out,
+			'errors'   => $errors,
+			'warnings' => $warnings,
+		);
 	}
 
 	/**
@@ -875,7 +918,7 @@ final class CT_Forms_Submissions {
 			return array( $file_struct );
 		}
 
-		$out = array();
+		$out   = array();
 		$names = $file_struct['name'];
 		$count = count( $names );
 
@@ -947,16 +990,22 @@ final class CT_Forms_Submissions {
 		// index.php
 		$index = trailingslashit( $dir ) . 'index.php';
 		if ( ! file_exists( $index ) ) {
-			@file_put_contents( $index, "<?php
+			@file_put_contents(
+				$index,
+				'<?php
 // Silence is golden.
-" );
+'
+			);
 		}
 
 		// .htaccess (Apache) – best effort; Nginx will ignore.
 		$ht = trailingslashit( $dir ) . '.htaccess';
 		if ( ! file_exists( $ht ) ) {
-			@file_put_contents( $ht, "Deny from all
-" );
+			@file_put_contents(
+				$ht,
+				'Deny from all
+'
+			);
 		}
 
 		// web.config (IIS) – best effort.
@@ -964,18 +1013,18 @@ final class CT_Forms_Submissions {
 		if ( ! file_exists( $wc ) ) {
 			@file_put_contents(
 				$wc,
-				"<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+				'<?xml version="1.0" encoding="UTF-8"?>
 <configuration>
   <system.webServer>
 	<security>
 	  <authorization>
-		<remove users=\"*\" roles=\"\" verbs=\"\" />
-		<add accessType=\"Deny\" users=\"*\" />
+		<remove users="*" roles="" verbs="" />
+		<add accessType="Deny" users="*" />
 	  </authorization>
 	</security>
   </system.webServer>
 </configuration>
-"
+'
 			);
 		}
 	}
@@ -986,10 +1035,10 @@ final class CT_Forms_Submissions {
 	 * @return mixed
 	 */
 	public static function upload_dir( $dirs ) {
-		$subdir = '/ct-forms';
+		$subdir         = '/ct-forms';
 		$dirs['subdir'] = $subdir;
-		$dirs['path'] = $dirs['basedir'] . $subdir;
-		$dirs['url']  = $dirs['baseurl'] . $subdir;
+		$dirs['path']   = $dirs['basedir'] . $subdir;
+		$dirs['url']    = $dirs['baseurl'] . $subdir;
 		return $dirs;
 	}
 
@@ -1004,13 +1053,13 @@ final class CT_Forms_Submissions {
 	 * @return mixed
 	 */
 	private static function send_notifications( $form_id, $entry_id, $data, $files, $form_settings ) {
-		$post = get_post( $form_id );
+		$post      = get_post( $form_id );
 		$form_name = $post ? $post->post_title : 'Form';
 
 		// Map field ids to labels/types from the saved form definition.
 		$field_labels = array();
 		$field_types  = array();
-		$raw_def = get_post_meta( $form_id, 'ct_form_definition', true );
+		$raw_def      = get_post_meta( $form_id, 'ct_form_definition', true );
 		if ( is_string( $raw_def ) && '' !== trim( $raw_def ) ) {
 			$def = json_decode( $raw_def, true );
 			if ( is_array( $def ) && ! empty( $def['fields'] ) && is_array( $def['fields'] ) ) {
@@ -1026,26 +1075,28 @@ final class CT_Forms_Submissions {
 		}
 
 		$log = array(
-			'sent_at' => current_time( 'mysql' ),
-			'admin' => array(),
+			'sent_at'       => current_time( 'mysql' ),
+			'admin'         => array(),
 			'autoresponder' => array(),
 		);
 
 		$tokens = self::build_tokens( $form_id, $entry_id, $data, true );
 
 		// Routing: base recipient + optional rules
-		$to = isset( $form_settings['to_email'] ) ? (string) $form_settings['to_email'] : '';
+		$to    = isset( $form_settings['to_email'] ) ? (string) $form_settings['to_email'] : '';
 		$rules = isset( $form_settings['routing_rules'] ) && is_array( $form_settings['routing_rules'] ) ? $form_settings['routing_rules'] : array();
 		foreach ( $rules as $rule ) {
 			$field = isset( $rule['field'] ) ? sanitize_key( $rule['field'] ) : '';
-			$op = isset( $rule['operator'] ) ? (string) $rule['operator'] : 'equals';
-			$val = isset( $rule['value'] ) ? (string) $rule['value'] : '';
-			$dest = isset( $rule['to_email'] ) ? (string) $rule['to_email'] : '';
-			if ( '' === $field || '' === $dest ) { continue; }
-			if ( ! isset( $data[ $field ] ) ) { continue; }
+			$op    = isset( $rule['operator'] ) ? (string) $rule['operator'] : 'equals';
+			$val   = isset( $rule['value'] ) ? (string) $rule['value'] : '';
+			$dest  = isset( $rule['to_email'] ) ? (string) $rule['to_email'] : '';
+			if ( '' === $field || '' === $dest ) {
+				continue; }
+			if ( ! isset( $data[ $field ] ) ) {
+				continue; }
 
 			$field_val = $data[ $field ];
-			$match = false;
+			$match     = false;
 
 			if ( is_array( $field_val ) ) {
 				$field_val = implode( ', ', $field_val );
@@ -1074,10 +1125,10 @@ final class CT_Forms_Submissions {
 		// Repair newline artifacts before the HTML pass so wpautop() can produce proper paragraphs/line breaks.
 		$body_rendered = self::apply_tokens( (string) $form_settings['email_body'], $tokens, $form_name );
 		$body_rendered = self::repair_template_newline_artifacts( $body_rendered );
-		$body = self::prepare_email_body_html( $body_rendered );
-		$headers = array();
-		$def = CT_Forms_CPT::get_form_definition( $form_id );
-		$from_info = self::build_from_header( $form_id, $form_settings );
+		$body          = self::prepare_email_body_html( $body_rendered );
+		$headers       = array();
+		$def           = CT_Forms_CPT::get_form_definition( $form_id );
+		$from_info     = self::build_from_header( $form_id, $form_settings );
 		if ( ! empty( $from_info['header'] ) ) {
 			$headers[] = $from_info['header'];
 		}
@@ -1109,9 +1160,9 @@ final class CT_Forms_Submissions {
 			$headers[] = 'Reply-To: ' . sanitize_email( $data[ $reply_to_field ] );
 		}
 
-		$attachments = array();
-		$attach_uploads = ! empty( $form_settings['attach_uploads'] );
-		$max_attach_mb = (int) apply_filters( 'ct_forms_max_attach_mb', 5, $form_id );
+		$attachments      = array();
+		$attach_uploads   = ! empty( $form_settings['attach_uploads'] );
+		$max_attach_mb    = (int) apply_filters( 'ct_forms_max_attach_mb', 5, $form_id );
 		$max_attach_bytes = $max_attach_mb * 1024 * 1024;
 
 		if ( $attach_uploads && ! empty( $files ) ) {
@@ -1144,7 +1195,7 @@ final class CT_Forms_Submissions {
 
 		$admin_sent = wp_mail( $to_list, $subject, $body, self::normalize_headers_for_wp_mail( $headers_for_mail ), $attachments );
 		if ( ! $admin_sent && ! empty( $from_info['overridden'] ) ) {
-			$headers_no_from = self::strip_from_header( $headers );
+			$headers_no_from          = self::strip_from_header( $headers );
 			$headers_no_from_for_mail = is_array( $headers_no_from ) ? array_values( array_filter( $headers_no_from ) ) : array( (string) $headers_no_from );
 
 			// Ensure we always have a Content-Type header present.
@@ -1189,7 +1240,7 @@ final class CT_Forms_Submissions {
 				$bcc_ok = wp_mail( $bcc_email, $subject, $body, self::normalize_headers_for_wp_mail( $headers_bcc_for_mail ), $attachments );
 				if ( ! $bcc_ok && ! empty( $from_info['overridden'] ) ) {
 					$headers_bcc_no_from = self::strip_from_header( $headers_bcc_for_mail );
-					$bcc_ok = wp_mail( $bcc_email, $subject, $body, self::normalize_headers_for_wp_mail( $headers_bcc_no_from ), $attachments );
+					$bcc_ok              = wp_mail( $bcc_email, $subject, $body, self::normalize_headers_for_wp_mail( $headers_bcc_no_from ), $attachments );
 				}
 
 				$bcc_sent[ $bcc_email ] = array(
@@ -1200,10 +1251,10 @@ final class CT_Forms_Submissions {
 		}
 
 		$log['admin'] = array(
-			'to' => implode( ', ', $to_list ),
+			'to'      => implode( ', ', $to_list ),
 			'subject' => $subject,
-			'sent' => (bool) $admin_sent,
-			'error' => self::last_mail_error(),
+			'sent'    => (bool) $admin_sent,
+			'error'   => self::last_mail_error(),
 		);
 
 		if ( ! empty( $bcc_sent ) ) {
@@ -1212,7 +1263,7 @@ final class CT_Forms_Submissions {
 
 		// Autoresponder
 		if ( ! empty( $form_settings['autoresponder_enabled'] ) ) {
-			$to_field = sanitize_key( (string) $form_settings['autoresponder_to_field'] );
+			$to_field  = sanitize_key( (string) $form_settings['autoresponder_to_field'] );
 			$submitter = ( $to_field && isset( $data[ $to_field ] ) ) ? (string) $data[ $to_field ] : '';
 			if ( is_email( $submitter ) ) {
 				$a_subject = self::apply_tokens( (string) $form_settings['autoresponder_subject'], $tokens, $form_name );
@@ -1220,19 +1271,19 @@ final class CT_Forms_Submissions {
 				// Repair newline artifacts before the HTML pass so wpautop() can produce proper paragraphs/line breaks.
 				$a_body_rendered = self::apply_tokens( (string) $form_settings['autoresponder_body'], $tokens, $form_name );
 				$a_body_rendered = self::repair_template_newline_artifacts( $a_body_rendered );
-				$a_body = self::prepare_email_body_html( $a_body_rendered );
+				$a_body          = self::prepare_email_body_html( $a_body_rendered );
 
 				$a_headers = array( 'Content-Type: text/html; charset=UTF-8' );
 				if ( isset( $from_info ) && ! empty( $from_info['header'] ) ) {
 					$a_headers[] = $from_info['header'];
 				}
 
-				$a_sent = wp_mail( $submitter, $a_subject, $a_body, self::normalize_headers_for_wp_mail( $a_headers ) );
+				$a_sent               = wp_mail( $submitter, $a_subject, $a_body, self::normalize_headers_for_wp_mail( $a_headers ) );
 				$log['autoresponder'] = array(
-					'to' => $submitter,
+					'to'      => $submitter,
 					'subject' => $a_subject,
-					'sent' => (bool) $a_sent,
-					'error' => self::last_mail_error(),
+					'sent'    => (bool) $a_sent,
+					'error'   => self::last_mail_error(),
 				);
 			}
 		}
@@ -1250,18 +1301,19 @@ final class CT_Forms_Submissions {
 	 * @return mixed
 	 */
 	private static function build_tokens( $form_id, $entry_id, $data, $is_html = false ) {
-		$post = get_post( $form_id );
+		$post      = get_post( $form_id );
 		$form_name = $post ? $post->post_title : 'Form';
 
 		// Map field ids to labels/types from the saved form definition.
 		$field_labels = array();
 		$field_types  = array();
-		$raw_def = get_post_meta( $form_id, 'ct_form_definition', true );
-		$def = is_string( $raw_def ) ? json_decode( $raw_def, true ) : ( is_array( $raw_def ) ? $raw_def : array() );
+		$raw_def      = get_post_meta( $form_id, 'ct_form_definition', true );
+		$def          = is_string( $raw_def ) ? json_decode( $raw_def, true ) : ( is_array( $raw_def ) ? $raw_def : array() );
 		if ( is_array( $def ) && ! empty( $def['fields'] ) && is_array( $def['fields'] ) ) {
 			foreach ( $def['fields'] as $f ) {
 				$fid = isset( $f['id'] ) ? sanitize_key( (string) $f['id'] ) : '';
-				if ( '' === $fid ) { continue; }
+				if ( '' === $fid ) {
+					continue; }
 				$field_labels[ $fid ] = isset( $f['label'] ) && $f['label'] !== '' ? (string) $f['label'] : $fid;
 				$field_types[ $fid ]  = isset( $f['type'] ) ? sanitize_key( (string) $f['type'] ) : '';
 			}
@@ -1275,9 +1327,9 @@ final class CT_Forms_Submissions {
 				$v = implode( ', ', $v );
 			}
 
-			$label = isset( $field_labels[ $k ] ) ? (string) $field_labels[ $k ] : (string) $k;
+			$label      = isset( $field_labels[ $k ] ) ? (string) $field_labels[ $k ] : (string) $k;
 			$field_type = isset( $field_types[ $k ] ) ? (string) $field_types[ $k ] : '';
-			$value = (string) $v;
+			$value      = (string) $v;
 
 			// Normalize escaped sequences and legacy artifacts sometimes produced by slashing/unslashing.
 			$value = str_replace( array( "\\r\\n", "\\n", "\\r" ), "\n", $value );
@@ -1311,7 +1363,7 @@ final class CT_Forms_Submissions {
 		}
 
 		$all_fields_text = implode( "\n", $all_fields_text_lines );
-		$all_fields_html = implode( "<br>", $all_fields_html_lines );
+		$all_fields_html = implode( '<br>', $all_fields_html_lines );
 
 		$tokens = array(
 			'{form_name}'  => $form_name,
@@ -1329,7 +1381,7 @@ final class CT_Forms_Submissions {
 		return $tokens;
 	}
 
-	
+
 	/**
 	 * site_domain method.
 	 *
@@ -1349,9 +1401,10 @@ final class CT_Forms_Submissions {
 	 */
 	private static function email_domain( $email ) {
 		$email = (string) $email;
-		if ( false === strpos( $email, '@' ) ) { return ''; }
+		if ( false === strpos( $email, '@' ) ) {
+			return ''; }
 		$parts = explode( '@', $email );
-		$dom = strtolower( end( $parts ) );
+		$dom   = strtolower( end( $parts ) );
 		return preg_replace( '/^www\./', '', $dom );
 	}
 
@@ -1364,7 +1417,8 @@ final class CT_Forms_Submissions {
 	private static function strip_from_header( $headers ) {
 		$out = array();
 		foreach ( (array) $headers as $h ) {
-			if ( 0 === stripos( (string) $h, 'From:' ) ) { continue; }
+			if ( 0 === stripos( (string) $h, 'From:' ) ) {
+				continue; }
 			$out[] = $h;
 		}
 		return $out;
@@ -1379,12 +1433,12 @@ final class CT_Forms_Submissions {
 	 */
 	private static function build_from_header( $form_id, $form_settings ) {
 		$global = CT_Forms_Admin::get_settings();
-		$mode = isset( $global['from_mode'] ) ? sanitize_key( (string) $global['from_mode'] ) : 'default';
+		$mode   = isset( $global['from_mode'] ) ? sanitize_key( (string) $global['from_mode'] ) : 'default';
 
 		// Default: let SMTP / wp_mail defaults control From. Use Reply-To for the submitter.
 		if ( 'site' !== $mode ) {
 			return array(
-				'header' => '',
+				'header'     => '',
 				'overridden' => false,
 			);
 		}
@@ -1397,7 +1451,7 @@ final class CT_Forms_Submissions {
 		$from_name = wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
 
 		return array(
-			'header' => ( $from_email !== '' ) ? sprintf( 'From: %s <%s>', $from_name, $from_email ) : '',
+			'header'     => ( $from_email !== '' ) ? sprintf( 'From: %s <%s>', $from_name, $from_email ) : '',
 			'overridden' => ( $from_email !== '' ),
 		);
 	}
@@ -1446,10 +1500,10 @@ final class CT_Forms_Submissions {
 			wp_die( 'Not allowed' );
 		}
 
-		$entry_id = isset( $_GET['entry_id'] ) ? (int) $_GET['entry_id'] : 0;
-		$field_id = isset( $_GET['field_id'] ) ? sanitize_key( (string) $_GET['field_id'] ) : '';
+		$entry_id   = isset( $_GET['entry_id'] ) ? (int) $_GET['entry_id'] : 0;
+		$field_id   = isset( $_GET['field_id'] ) ? sanitize_key( (string) $_GET['field_id'] ) : '';
 		$file_index = isset( $_GET['file_index'] ) ? max( 0, (int) $_GET['file_index'] ) : 0;
-		$nonce = isset( $_GET['_wpnonce'] ) ? (string) $_GET['_wpnonce'] : '';
+		$nonce      = isset( $_GET['_wpnonce'] ) ? (string) $_GET['_wpnonce'] : '';
 
 		if ( $entry_id <= 0 || '' === $field_id ) {
 			wp_die( 'Invalid request' );
@@ -1510,10 +1564,10 @@ final class CT_Forms_Submissions {
 			wp_die( 'Not allowed' );
 		}
 
-		$entry_id = isset( $_GET['entry_id'] ) ? (int) $_GET['entry_id'] : 0;
-		$field_id = isset( $_GET['field_id'] ) ? sanitize_key( (string) $_GET['field_id'] ) : '';
+		$entry_id   = isset( $_GET['entry_id'] ) ? (int) $_GET['entry_id'] : 0;
+		$field_id   = isset( $_GET['field_id'] ) ? sanitize_key( (string) $_GET['field_id'] ) : '';
 		$file_index = isset( $_GET['file_index'] ) ? max( 0, (int) $_GET['file_index'] ) : 0;
-		$nonce = isset( $_GET['_wpnonce'] ) ? (string) $_GET['_wpnonce'] : '';
+		$nonce      = isset( $_GET['_wpnonce'] ) ? (string) $_GET['_wpnonce'] : '';
 
 		if ( $entry_id <= 0 || '' === $field_id ) {
 			wp_die( 'Invalid request' );
@@ -1528,8 +1582,8 @@ final class CT_Forms_Submissions {
 			wp_die( 'File not found' );
 		}
 
-		$files = $entry['files'];
-		$target = $files[ $field_id ];
+		$files    = $entry['files'];
+		$target   = $files[ $field_id ];
 		$is_multi = ( is_array( $target ) && isset( $target[0] ) );
 		$file_obj = $is_multi ? ( $target[ $file_index ] ?? null ) : $target;
 
@@ -1597,46 +1651,51 @@ final class CT_Forms_Submissions {
 			$status = 'all';
 		}
 
-		$deleted = 0;
-		$paged = 1;
+		$deleted  = 0;
+		$paged    = 1;
 		$per_page = 200;
 
 		do {
-			$q = CT_Forms_DB::get_entries_with_files( array(
-				'paged'    => $paged,
-				'per_page' => $per_page,
-				'form_id'  => $form_id,
-				// leave search empty here; we do filename filtering per-file, not per-entry
-				'search'   => '',
-			) );
+			$q = CT_Forms_DB::get_entries_with_files(
+				array(
+					'paged'    => $paged,
+					'per_page' => $per_page,
+					'form_id'  => $form_id,
+					// leave search empty here; we do filename filtering per-file, not per-entry
+					'search'   => '',
+				)
+			);
 
-			$total = isset( $q['total'] ) ? (int) $q['total'] : 0;
-			$items = isset( $q['items'] ) ? (array) $q['items'] : array();
+			$total       = isset( $q['total'] ) ? (int) $q['total'] : 0;
+			$items       = isset( $q['items'] ) ? (array) $q['items'] : array();
 			$total_pages = $per_page > 0 ? (int) ceil( $total / $per_page ) : 1;
 
 			foreach ( $items as $entry ) {
 				$entry_id = isset( $entry['entry_id'] ) ? (int) $entry['entry_id'] : ( isset( $entry['id'] ) ? (int) $entry['id'] : 0 );
-				if ( $entry_id <= 0 ) { continue; }
+				if ( $entry_id <= 0 ) {
+					continue; }
 
 				$full = CT_Forms_DB::get_entry( $entry_id );
 				if ( ! $full || empty( $full['files'] ) || ! is_array( $full['files'] ) ) {
 					continue;
 				}
 
-				$files = $full['files'];
+				$files   = $full['files'];
 				$changed = false;
 
 				foreach ( $files as $field_id => $file_obj ) {
 					$field_id = sanitize_key( (string) $field_id );
-					if ( '' === $field_id ) { continue; }
+					if ( '' === $field_id ) {
+						continue; }
 
 					$is_multi = ( is_array( $file_obj ) && isset( $file_obj[0] ) );
-					$list = $is_multi ? (array) $file_obj : array( $file_obj );
+					$list     = $is_multi ? (array) $file_obj : array( $file_obj );
 
 					$kept = array();
 
 					foreach ( $list as $f ) {
-						if ( ! is_array( $f ) ) { continue; }
+						if ( ! is_array( $f ) ) {
+							continue; }
 
 						$path = isset( $f['path'] ) ? (string) $f['path'] : ( isset( $f['file'] ) ? (string) $f['file'] : '' );
 						$orig = isset( $f['original'] ) ? (string) $f['original'] : ( isset( $f['name'] ) ? (string) $f['name'] : '' );
@@ -1644,11 +1703,11 @@ final class CT_Forms_Submissions {
 						// Search filter (by original name and path)
 						$matches_search = true;
 						if ( '' !== $needle ) {
-							$hay = strtolower( $orig . ' ' . $path );
+							$hay            = strtolower( $orig . ' ' . $path );
 							$matches_search = ( false !== strpos( $hay, $needle ) );
 						}
 
-						$exists = ( '' !== $path && file_exists( $path ) );
+						$exists         = ( '' !== $path && file_exists( $path ) );
 						$matches_status = true;
 						if ( 'ok' === $status ) {
 							$matches_status = $exists;
@@ -1661,7 +1720,7 @@ final class CT_Forms_Submissions {
 							if ( '' !== $path && self::is_safe_upload_path( $path ) && file_exists( $path ) ) {
 								@unlink( $path );
 							}
-							$deleted++;
+							++$deleted;
 							$changed = true;
 							continue; // remove from entry JSON
 						}
@@ -1683,7 +1742,7 @@ final class CT_Forms_Submissions {
 				}
 			}
 
-			$paged++;
+			++$paged;
 		} while ( $paged <= $total_pages );
 
 		$redirect = isset( $_POST['_redirect'] ) ? esc_url_raw( (string) $_POST['_redirect'] ) : '';
@@ -1691,17 +1750,20 @@ final class CT_Forms_Submissions {
 			$redirect = admin_url( 'admin.php?page=ct-forms-files' );
 		}
 
-		$redirect = add_query_arg( array(
-			'ct_forms_deleted_all' => 1,
-			'ct_forms_deleted_all_count' => (int) $deleted,
-		), $redirect );
+		$redirect = add_query_arg(
+			array(
+				'ct_forms_deleted_all'       => 1,
+				'ct_forms_deleted_all_count' => (int) $deleted,
+			),
+			$redirect
+		);
 
 		wp_safe_redirect( $redirect );
 		exit;
 	}
 
 
-function handle_delete_entry() {
+	function handle_delete_entry() {
 		if ( ! current_user_can( 'ct_forms_manage' ) ) {
 			wp_die( 'Not allowed' );
 		}
@@ -1794,14 +1856,14 @@ function handle_delete_entry() {
 	 */
 	private static function is_safe_upload_path( $path ) {
 		$uploads = wp_upload_dir();
-		$base = isset( $uploads['basedir'] ) ? (string) $uploads['basedir'] : '';
+		$base    = isset( $uploads['basedir'] ) ? (string) $uploads['basedir'] : '';
 		if ( '' === $base ) {
 			return false;
 		}
 
 		$allowed_root = trailingslashit( $base ) . 'ct-forms';
 		$real_allowed = realpath( $allowed_root );
-		$real_path = realpath( $path );
+		$real_path    = realpath( $path );
 		if ( false === $real_allowed || false === $real_path ) {
 			return false;
 		}
@@ -1814,7 +1876,7 @@ function handle_delete_entry() {
 	 * Used by the "diagnostics" virtual field type.
 	 */
 	private static function build_diagnostics_text() {
-		$theme = function_exists( 'wp_get_theme' ) ? wp_get_theme() : null;
+		$theme      = function_exists( 'wp_get_theme' ) ? wp_get_theme() : null;
 		$theme_line = $theme ? ( $theme->get( 'Name' ) . ' ' . $theme->get( 'Version' ) ) : '';
 
 		$plugins = array();
@@ -1859,7 +1921,7 @@ function handle_delete_entry() {
 		$ip = '';
 		if ( ! empty( $_SERVER['HTTP_X_FORWARDED_FOR'] ) ) {
 			$ips = explode( ',', (string) $_SERVER['HTTP_X_FORWARDED_FOR'] );
-			$ip = trim( $ips[0] );
+			$ip  = trim( $ips[0] );
 		} elseif ( ! empty( $_SERVER['REMOTE_ADDR'] ) ) {
 			$ip = (string) $_SERVER['REMOTE_ADDR'];
 		}
@@ -1873,8 +1935,8 @@ function handle_delete_entry() {
 	 */
 	private static function current_url() {
 		$scheme = is_ssl() ? 'https' : 'http';
-		$host = isset( $_SERVER['HTTP_HOST'] ) ? (string) $_SERVER['HTTP_HOST'] : '';
-		$uri  = isset( $_SERVER['REQUEST_URI'] ) ? (string) $_SERVER['REQUEST_URI'] : '';
+		$host   = isset( $_SERVER['HTTP_HOST'] ) ? (string) $_SERVER['HTTP_HOST'] : '';
+		$uri    = isset( $_SERVER['REQUEST_URI'] ) ? (string) $_SERVER['REQUEST_URI'] : '';
 		return esc_url_raw( $scheme . '://' . $host . $uri );
 	}
 }

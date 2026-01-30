@@ -39,7 +39,7 @@ class CT_Forms_Tools {
 
 		$scan = self::scan_installation();
 
-		$settings = CT_Forms_Admin::get_settings();
+		$settings            = CT_Forms_Admin::get_settings();
 		$delete_on_uninstall = ! empty( $settings['delete_on_uninstall'] );
 
 		?>
@@ -184,8 +184,8 @@ class CT_Forms_Tools {
 		}
 		check_admin_referer( 'ct_forms_export_entries_csv' );
 
-		$form_id = isset( $_POST['form_id'] ) ? (int) $_POST['form_id'] : 0;
-		$status  = isset( $_POST['status'] ) ? sanitize_key( (string) wp_unslash( $_POST['status'] ) ) : '';
+		$form_id       = isset( $_POST['form_id'] ) ? (int) $_POST['form_id'] : 0;
+		$status        = isset( $_POST['status'] ) ? sanitize_key( (string) wp_unslash( $_POST['status'] ) ) : '';
 		$include_files = ! empty( $_POST['include_files'] );
 
 		$date_from = isset( $_POST['date_from'] ) ? sanitize_text_field( wp_unslash( $_POST['date_from'] ) ) : '';
@@ -194,9 +194,9 @@ class CT_Forms_Tools {
 		global $wpdb;
 		$table = CT_Forms_DB::entries_table();
 
-				$pk_col      = CT_Forms_DB::entries_pk_column();
-		$created_col = CT_Forms_DB::entries_created_column();
-		$data_col    = CT_Forms_DB::entries_data_column();
+				$pk_col = CT_Forms_DB::entries_pk_column();
+		$created_col    = CT_Forms_DB::entries_created_column();
+		$data_col       = CT_Forms_DB::entries_data_column();
 
 		$entries_cols = CT_Forms_DB::entries_columns();
 
@@ -205,27 +205,27 @@ class CT_Forms_Tools {
 
 		// Files column detection (supports legacy installs).
 		$files_col = in_array( 'files', $entries_cols, true ) ? 'files' : ( in_array( 'files_json', $entries_cols, true ) ? 'files_json' : ( in_array( 'uploads', $entries_cols, true ) ? 'uploads' : '' ) );
-if ( ! $pk_col || ! $created_col || ! $data_col ) {
+		if ( ! $pk_col || ! $created_col || ! $data_col ) {
 			wp_die( esc_html__( 'Entries table schema not detected.', 'ct-forms' ) );
 		}
 
-		$where = array();
+		$where  = array();
 		$params = array();
 
 		if ( $form_id > 0 ) {
-			$where[] = 'form_id = %d';
+			$where[]  = 'form_id = %d';
 			$params[] = $form_id;
 		}
 		if ( $status !== '' && $status_col ) {
-			$where[] = "{$status_col} = %s";
+			$where[]  = "{$status_col} = %s";
 			$params[] = $status;
 		}
 		if ( $date_from !== '' ) {
-			$where[] = "{$created_col} >= %s";
+			$where[]  = "{$created_col} >= %s";
 			$params[] = $date_from . ' 00:00:00';
 		}
 		if ( $date_to !== '' ) {
-			$where[] = "{$created_col} <= %s";
+			$where[]  = "{$created_col} <= %s";
 			$params[] = $date_to . ' 23:59:59';
 		}
 
@@ -236,14 +236,16 @@ if ( ! $pk_col || ! $created_col || ! $data_col ) {
 
 		$select = array(
 			"{$pk_col} AS entry_id",
-			"form_id",
+			'form_id',
 			"{$created_col} AS submitted_at",
 		);
-		if ( $status_col ) { $select[] = "{$status_col} AS status"; }
+		if ( $status_col ) {
+			$select[] = "{$status_col} AS status"; }
 		$select[] = "{$data_col} AS data_json";
-		if ( $include_files && $files_col ) { $select[] = "{$files_col} AS files_json"; }
+		if ( $include_files && $files_col ) {
+			$select[] = "{$files_col} AS files_json"; }
 
-		$sql = "SELECT " . implode( ', ', $select ) . " FROM {$table} {$where_sql} ORDER BY {$created_col} DESC";
+		$sql = 'SELECT ' . implode( ', ', $select ) . " FROM {$table} {$where_sql} ORDER BY {$created_col} DESC";
 
 		if ( ! empty( $params ) ) {
 			$sql = $wpdb->prepare( $sql, ...$params );
@@ -261,18 +263,21 @@ if ( ! $pk_col || ! $created_col || ! $data_col ) {
 
 		// Determine headers from data keys (dynamic, but stable).
 		$headers = array( 'entry_id', 'form_id', 'submitted_at' );
-		if ( $status_col ) { $headers[] = 'status'; }
+		if ( $status_col ) {
+			$headers[] = 'status'; }
 		$headers[] = 'field_data';
-		if ( $include_files && $files_col ) { $headers[] = 'files'; }
+		if ( $include_files && $files_col ) {
+			$headers[] = 'files'; }
 
 		fputcsv( $out, $headers );
 
 		foreach ( (array) $rows as $r ) {
-			$data = array();
-			$data['entry_id'] = $r['entry_id'];
-			$data['form_id'] = $r['form_id'];
+			$data                 = array();
+			$data['entry_id']     = $r['entry_id'];
+			$data['form_id']      = $r['form_id'];
 			$data['submitted_at'] = $r['submitted_at'];
-			if ( $status_col ) { $data['status'] = isset( $r['status'] ) ? $r['status'] : ''; }
+			if ( $status_col ) {
+				$data['status'] = isset( $r['status'] ) ? $r['status'] : ''; }
 
 			// data_json contains field values.
 			$data['field_data'] = isset( $r['data_json'] ) ? $r['data_json'] : '';
@@ -314,7 +319,7 @@ if ( ! $pk_col || ! $created_col || ! $data_col ) {
 		$delete_uploads = ! empty( $_POST['delete_uploads'] );
 
 		$result = array(
-			'tables_dropped' => array(),
+			'tables_dropped'  => array(),
 			'options_deleted' => 0,
 			'uploads_deleted' => 0,
 		);
@@ -324,8 +329,8 @@ if ( ! $pk_col || ! $created_col || ! $data_col ) {
 		if ( $delete_tables ) {
 			$tables = self::candidate_tables();
 			foreach ( $tables as $t ) {
-				$full = $wpdb->prefix . $t;
-				$exists = $wpdb->get_var( $wpdb->prepare( "SHOW TABLES LIKE %s", $full ) );
+				$full   = $wpdb->prefix . $t;
+				$exists = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $full ) );
 				if ( $exists === $full ) {
 					$wpdb->query( "DROP TABLE IF EXISTS {$full}" );
 					$result['tables_dropped'][] = $full;
@@ -351,7 +356,7 @@ if ( ! $pk_col || ! $created_col || ! $data_col ) {
 			$rows = $wpdb->get_col( $wpdb->prepare( "SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE %s", $like ) );
 			foreach ( (array) $rows as $name ) {
 				delete_option( $name );
-				$result['options_deleted']++;
+				++$result['options_deleted'];
 			}
 
 			// Transients may exist.
@@ -359,13 +364,13 @@ if ( ! $pk_col || ! $created_col || ! $data_col ) {
 			$t_rows = $wpdb->get_col( $wpdb->prepare( "SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE %s", $t_like ) );
 			foreach ( (array) $t_rows as $name ) {
 				delete_option( $name );
-				$result['options_deleted']++;
+				++$result['options_deleted'];
 			}
 		}
 
 		if ( $delete_uploads ) {
 			$upload_dir = wp_upload_dir();
-			$dir = trailingslashit( $upload_dir['basedir'] ) . 'ct-forms';
+			$dir        = trailingslashit( $upload_dir['basedir'] ) . 'ct-forms';
 			if ( is_dir( $dir ) ) {
 				$result['uploads_deleted'] = self::rrmdir( $dir ) ? 1 : 0;
 			}
@@ -398,11 +403,11 @@ if ( ! $pk_col || ! $created_col || ! $data_col ) {
 	 */
 	private static function status_labels() {
 		return array(
-			'new' => __( 'New', 'ct-forms' ),
-			'reviewed' => __( 'Reviewed', 'ct-forms' ),
+			'new'       => __( 'New', 'ct-forms' ),
+			'reviewed'  => __( 'Reviewed', 'ct-forms' ),
 			'follow_up' => __( 'Follow Up', 'ct-forms' ),
-			'spam' => __( 'Spam', 'ct-forms' ),
-			'archived' => __( 'Archived', 'ct-forms' ),
+			'spam'      => __( 'Spam', 'ct-forms' ),
+			'archived'  => __( 'Archived', 'ct-forms' ),
 		);
 	}
 
@@ -416,20 +421,21 @@ if ( ! $pk_col || ! $created_col || ! $data_col ) {
 
 		$tables_found = array();
 		foreach ( self::candidate_tables() as $t ) {
-			$full = $wpdb->prefix . $t;
-			$exists = $wpdb->get_var( $wpdb->prepare( "SHOW TABLES LIKE %s", $full ) );
+			$full   = $wpdb->prefix . $t;
+			$exists = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $full ) );
 			if ( $exists === $full ) {
 				$tables_found[] = $full;
 			}
 		}
 
 		$options_found = array();
-		$like = $wpdb->esc_like( 'ct_forms_' ) . '%';
-		$rows = $wpdb->get_col( $wpdb->prepare( "SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE %s", $like ) );
-		foreach ( (array) $rows as $name ) { $options_found[] = $name; }
+		$like          = $wpdb->esc_like( 'ct_forms_' ) . '%';
+		$rows          = $wpdb->get_col( $wpdb->prepare( "SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE %s", $like ) );
+		foreach ( (array) $rows as $name ) {
+			$options_found[] = $name; }
 
 		$upload_dir = wp_upload_dir();
-		$dir = trailingslashit( $upload_dir['basedir'] ) . 'ct-forms';
+		$dir        = trailingslashit( $upload_dir['basedir'] ) . 'ct-forms';
 
 		$uploads_count = 0;
 		$uploads_bytes = 0;
@@ -437,31 +443,36 @@ if ( ! $pk_col || ! $created_col || ! $data_col ) {
 			$it = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $dir, FilesystemIterator::SKIP_DOTS ) );
 			foreach ( $it as $file ) {
 				if ( $file->isFile() ) {
-					$uploads_count++;
+					++$uploads_count;
 					$uploads_bytes += (int) $file->getSize();
 				}
 			}
 		}
 
 		$forms = array();
-		$posts = get_posts( array(
-			'post_type' => 'ct_form',
-			'post_status' => array( 'publish', 'draft', 'private' ),
-			'numberposts' => 200,
-			'orderby' => 'date',
-			'order' => 'DESC',
-		) );
+		$posts = get_posts(
+			array(
+				'post_type'   => 'ct_form',
+				'post_status' => array( 'publish', 'draft', 'private' ),
+				'numberposts' => 200,
+				'orderby'     => 'date',
+				'order'       => 'DESC',
+			)
+		);
 		foreach ( (array) $posts as $p ) {
-			$forms[] = array( 'id' => (int) $p->ID, 'title' => (string) $p->post_title );
+			$forms[] = array(
+				'id'    => (int) $p->ID,
+				'title' => (string) $p->post_title,
+			);
 		}
 
 		return array(
-			'tables_found' => $tables_found,
+			'tables_found'  => $tables_found,
 			'options_found' => $options_found,
-			'uploads_dir' => $dir,
+			'uploads_dir'   => $dir,
 			'uploads_count' => $uploads_count,
 			'uploads_bytes' => $uploads_bytes,
-			'forms' => $forms,
+			'forms'         => $forms,
 		);
 	}
 
@@ -472,7 +483,8 @@ if ( ! $pk_col || ! $created_col || ! $data_col ) {
 	 * @return mixed
 	 */
 	private static function rrmdir( $dir ) {
-		if ( ! is_dir( $dir ) ) { return false; }
+		if ( ! is_dir( $dir ) ) {
+			return false; }
 		$it = new RecursiveIteratorIterator(
 			new RecursiveDirectoryIterator( $dir, FilesystemIterator::SKIP_DOTS ),
 			RecursiveIteratorIterator::CHILD_FIRST

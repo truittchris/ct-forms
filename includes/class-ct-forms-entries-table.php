@@ -214,14 +214,14 @@ final class CT_Forms_Entries_Table extends WP_List_Table {
 		if ( isset( $_GET['paged'] ) ) {
 			$paged = max( 1, absint( wp_unslash( $_GET['paged'] ) ) );
 		}
-		$offset   = ( $paged - 1 ) * $per_page;
+		$offset = ( $paged - 1 ) * $per_page;
 
 		$where = 'WHERE 1=1';
 		$args  = array();
 
 		$form_id_raw = isset( $_GET['form_id'] ) ? (string) wp_unslash( $_GET['form_id'] ) : '';
 		if ( '' !== $form_id_raw ) {
-			$where  .= ' AND form_id = %d';
+			$where .= ' AND form_id = %d';
 			$args[] = absint( $form_id_raw );
 		}
 
@@ -229,7 +229,7 @@ final class CT_Forms_Entries_Table extends WP_List_Table {
 		if ( '' !== $search_raw ) {
 			$search = sanitize_text_field( $search_raw );
 			$like   = '%' . $wpdb->esc_like( $search ) . '%';
-			$where  .= ' AND (data LIKE %s OR page_url LIKE %s)';
+			$where .= ' AND (data LIKE %s OR page_url LIKE %s)';
 			$args[] = $like;
 			$args[] = $like;
 		}
