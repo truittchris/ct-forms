@@ -1,17 +1,17 @@
 .ct-forms-wrap{margin:16px 0;}
 /* Confirmation message: keep spacing but avoid a nested "double box" look */
 .ct-forms-confirmation{
-  padding:0;
-  border:0;
-  border-radius:0;
-  background:transparent;
-  margin-bottom:12px;
+	padding:0;
+	border:0;
+	border-radius:0;
+	background:transparent;
+	margin-bottom:12px;
 }
 .ct-forms-confirmation-error{
-  opacity:0.95;
+	opacity:0.95;
 }
 .ct-forms-confirmation-warning{
-  opacity:0.95;
+	opacity:0.95;
 }
 .ct-forms-form{display:grid;gap:12px;}
 .ct-forms-field label{display:block;margin-bottom:6px;font-weight:600;}
