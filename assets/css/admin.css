@@ -1,0 +1,81 @@
+.ct-forms-admin-card{background:#fff;border:1px solid #dcdcde;border-radius:8px;padding:16px;margin:16px 0;}
+.ct-forms-admin-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start;}
+@media (max-width: 1100px){.ct-forms-admin-grid{grid-template-columns:1fr;}}
+.ct-forms-builder{border:1px solid #dcdcde;border-radius:8px;padding:12px;min-height:80px;background:#f6f7f7;}
+.ct-forms-field-row{background:#fff;border:1px solid #dcdcde;border-radius:8px;padding:10px;margin:8px 0;display:flex;gap:10px;align-items:flex-start;}
+.ct-forms-field-row .handle{cursor:move;padding:6px 8px;border:1px solid #dcdcde;border-radius:6px;background:#f6f7f7;}
+.ct-forms-field-row .meta{flex:1;}
+.ct-forms-field-row .meta input[type=text], .ct-forms-field-row .meta select{width:100%;}
+.ct-forms-field-row .actions{display:flex;flex-direction:column;gap:6px;}
+.ct-forms-builder-actions{display:flex;gap:10px;margin-top:12px;}
+.ct-forms-inline{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+
+
+/* Entries table - submitted column */
+.truitt-submitted{display:inline-flex;flex-direction:column;gap:2px;line-height:1.25;}
+.truitt-submitted__main{font-weight:600;}
+.truitt-submitted__sub{font-size:12px;color:#6c757d;}
+.truitt-submitted--empty .truitt-submitted__main{font-weight:600;color:#6c757d;}
+
+/* Form builder readonly helper */
+.ct-forms-readonly{
+  display:block;
+  padding:6px 8px;
+  border:1px solid #dcdcde;
+  border-radius:4px;
+  background:#f6f7f7;
+  color:#2c3338;
+  font-size:13px;
+}
+
+/* Optional: status pill */
+.truitt-entry-status{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;line-height:1.4;background:#f0f0f1;border:1px solid #dcdcde;}
+.truitt-entry-status--new{background:#e7f5ff;border-color:#b3ddff;}
+.truitt-entry-status--reviewed{background:#eaf7ee;border-color:#bfe7c8;}
+.truitt-entry-status--follow_up{background:#fff7e6;border-color:#ffe0a3;}
+.truitt-entry-status--spam{background:#ffecec;border-color:#ffb5b5;}
+.truitt-entry-status--archived{background:#f6f7f7;border-color:#dcdcde;}
+
+
+/* Files manager status badges */
+.truitt-file-status{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;line-height:1.4;border:1px solid transparent;}
+.truitt-file-status--ok{background:#f0f7f0;border-color:#b7dfb7;color:#2b6a2b;}
+.truitt-file-status--missing{background:#fff4f4;border-color:#f0b1b1;color:#8a1f1f;}
+
+
+/* --- CT Forms edit form flow + tabs + builder accordion --- */
+.ct-forms-flow{display:flex;flex-direction:column;gap:16px;margin-top:16px;}
+.ct-forms-step__header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:12px;}
+.ct-forms-step__title{margin:0;}
+.ct-forms-step__actions{display:flex;gap:8px;flex-wrap:wrap;}
+
+/* Tabs */
+.ct-forms-tabs{display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid #dcdcde;margin:8px 0 12px;padding-bottom:8px;}
+.ct-forms-tab{border:1px solid #dcdcde;background:#f6f7f7;border-radius:999px;padding:6px 12px;cursor:pointer;}
+.ct-forms-tab.is-active{background:#fff;}
+.ct-forms-tab-panel{display:none;}
+.ct-forms-tab-panel.is-active{display:block;}
+.ct-forms-settings-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start;}
+@media (max-width: 1100px){.ct-forms-settings-grid{grid-template-columns:1fr;}}
+.ct-forms-settings-footer{margin-top:12px;padding-top:12px;border-top:1px solid #dcdcde;display:flex;justify-content:flex-end;}
+
+/* Builder toolbar moved into header, keep spacing */
+.ct-forms-builder-toolbar{display:none;}
+
+/* Builder rows (accordion) */
+.ct-forms-field-row{padding:0;display:block;}
+.ct-forms-field-header{display:flex;align-items:center;gap:10px;padding:10px;border-bottom:1px solid #f0f0f1;}
+.ct-forms-field-row.is-collapsed .ct-forms-field-header{border-bottom:none;}
+.ct-forms-field-header .handle{margin-left:10px;}
+.truitt-field-toggle{border:1px solid #dcdcde;background:#fff;border-radius:999px;width:28px;height:28px;line-height:26px;text-align:center;cursor:pointer;}
+.ct-forms-field-row.is-collapsed .truitt-field-toggle{transform:rotate(-90deg);}
+.truitt-field-header-main{flex:1;min-width:0;}
+.truitt-field-header-title{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.truitt-field-typemeta{display:inline-block;padding:2px 8px;border:1px solid #dcdcde;border-radius:999px;background:#f6f7f7;font-size:12px;}
+.truitt-field-required{display:inline-block;padding:2px 8px;border-radius:999px;background:#fff4e5;border:1px solid #ffd8a8;font-size:12px;}
+.truitt-field-idpill{display:inline-block;padding:2px 8px;border-radius:999px;background:#eef7ff;border:1px solid #b6d7ff;font-size:12px;color:#1d2327;}
+.truitt-field-header-meta{font-size:12px;color:#6c757d;margin-top:2px;}
+.ct-forms-field-body{padding:10px;}
+.ct-forms-field-row.is-collapsed .ct-forms-field-body{display:none;}
+.ct-forms-advanced-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:end;}
+@media (max-width: 1100px){.ct-forms-advanced-grid{grid-template-columns:1fr;}}

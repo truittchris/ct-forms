@@ -1,0 +1,22 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/
+
+# Logs
+*.log
+
+# Dependencies / builds (if added later)
+node_modules/
+vendor/
+dist/
+build/
+
+# Archives
+#*.zip
+
+# Local WP configs
+*.local
