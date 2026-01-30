@@ -20,5 +20,16 @@ jobs:
       - name: Install dependencies
         run: composer install --no-interaction --no-progress --prefer-dist
 
-      - name: PHPCS lint
-        run: composer lint
+      - name: PHPCS (report)
+        run: |
+          mkdir -p build
+          vendor/bin/phpcs --standard=phpcs.xml.dist --report=full --report-file=build/phpcs-report.txt
+          vendor/bin/phpcs --standard=phpcs.xml.dist --report=json --report-file=build/phpcs-report.json || true
+          composer lint
+
+      - name: Upload PHPCS report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phpcs-report
+          path: build/phpcs-report.*
