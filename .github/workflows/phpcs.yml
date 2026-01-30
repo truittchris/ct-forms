@@ -21,11 +21,30 @@ jobs:
         run: composer install --no-interaction --no-progress --prefer-dist
 
       - name: PHPCS (report)
+        shell: bash
         run: |
           mkdir -p build
-          vendor/bin/phpcs --standard=phpcs.xml.dist --report=full --report-file=build/phpcs-report.txt
-          vendor/bin/phpcs --standard=phpcs.xml.dist --report=json --report-file=build/phpcs-report.json || true
-          composer lint
+
+          # Run PHPCS reports but do not fail the step yet.
+          vendor/bin/phpcs --standard=phpcs.xml.dist --report=full --report-file=build/phpcs-report.txt || PHPCS_TXT_EXIT=$?
+          vendor/bin/phpcs --standard=phpcs.xml.dist --report=json --report-file=build/phpcs-report.json || PHPCS_JSON_EXIT=$?
+
+          # Run your normal lint command (also do not fail yet).
+          composer lint || LINT_EXIT=$?
+
+          # Default unset vars to 0.
+          PHPCS_TXT_EXIT="${PHPCS_TXT_EXIT:-0}"
+          PHPCS_JSON_EXIT="${PHPCS_JSON_EXIT:-0}"
+          LINT_EXIT="${LINT_EXIT:-0}"
+
+          echo "PHPCS txt exit:  ${PHPCS_TXT_EXIT}"
+          echo "PHPCS json exit: ${PHPCS_JSON_EXIT}"
+          echo "composer lint exit: ${LINT_EXIT}"
+
+          # Fail the job at the end if any of them failed.
+          if [ "${PHPCS_TXT_EXIT}" -ne 0 ] || [ "${PHPCS_JSON_EXIT}" -ne 0 ] || [ "${LINT_EXIT}" -ne 0 ]; then
+            exit 1
+          fi
 
       - name: Upload PHPCS report
         if: always()
