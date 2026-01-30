@@ -1,17 +1,32 @@
 <?php
-if ( ! defined( 'ABSPATH' ) ) { exit; }
+/**
+ * Admin screens and actions.
+ *
+ * @package CT_Forms
+ */
 
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+/**
+ * Admin functionality for CT Forms.
+ */
 final class CT_Forms_Admin {
-    private static function normalize_template_newlines( $value ) {
-        $value = is_string( $value ) ? $value : '';
+	/**
+	 * Normalize saved email template newlines.
+	 *
+	 * @param mixed $value Template content.
+	 * @return string
+	 */
+	private static function normalize_template_newlines( $value ) {
+		$value = is_string( $value ) ? $value : '';
 
-        // Convert escaped sequences (e.g., "\\r\\n") to real LF newlines for storage.
-        $value = str_replace( array( "\r\n", "\n", "
-", "\r" ), "
-", $value );
+		// Convert escaped sequences (e.g., "\\r\\n") to real LF newlines for storage.
+		$value = str_replace( array( "\\r\\n", "\\n", "\\r", "\r\n", "\n", "\r" ), "\n", $value );
 
-        // Normalize actual CRLF/CR to LF.
-        $value = preg_replace( "/\r\n|\r/", "\n", $value );
+		// Normalize actual CRLF/CR to LF.
+		$value = preg_replace( "/\r\n|\r/", "\n", $value );
 
 		// Back-compat: handle legacy artifacts where escaped newline sequences got stripped.
 		// These have shown up in saved templates as:
@@ -28,42 +43,58 @@ final class CT_Forms_Admin {
 		$value = preg_replace( '/nn(?=Entry\b)/', "\n\n", $value );
 		$value = preg_replace( '/(?<=[\}\]\.\)])\s*nn/', "\n\n", $value );
 		$value = preg_replace( '/(?<=\d)nn(?=[A-Za-z])/', "\n\n", $value );
-        // Common boundary patterns where the artifact appears.
-        $value = preg_replace( '/rn(?=\{)/', "\n", $value );
-        $value = preg_replace( '/(?<=[\}\]\.\)])rn/', "\n", $value );
-        $value = preg_replace( '/rn(?=Reference\b)/', "\n", $value );
+		// Common boundary patterns where the artifact appears.
+		$value = preg_replace( '/rn(?=\{)/', "\n", $value );
+		$value = preg_replace( '/(?<=[\}\]\.\)])rn/', "\n", $value );
+		$value = preg_replace( '/rn(?=Reference\b)/', "\n", $value );
 		// Same, but for the stripped "n" artifact.
 		$value = preg_replace( '/n(?=\{)/', "\n", $value );
 		$value = preg_replace( '/(?<=[\}\]\.\)])n/', "\n", $value );
 		$value = preg_replace( '/n(?=Reference\b)/', "\n", $value );
 		$value = preg_replace( '/(?<=\d)n(?=[A-Za-z])/', "\n\n", $value );
 
-        return $value;
-    }
+		return $value;
+	}
 
-private static function format_submitted_cell_html( $submitted_raw ) {
-    if ( empty( $submitted_raw ) || $submitted_raw === '0000-00-00 00:00:00' ) {
-        return '<span class="truitt-submitted truitt-submitted--empty"><span class="truitt-submitted__main">–</span><span class="truitt-submitted__sub">Not recorded</span></span>';
-    }
+	/**
+	 * Format the submitted date display.
+	 *
+	 * @param string $submitted_raw Submitted time.
+	 * @return string
+	 */
+	private static function format_submitted_cell_html( $submitted_raw ) {
+		$empty_html = sprintf(
+			'<span class="truitt-submitted truitt-submitted--empty"><span class="truitt-submitted__main">%s</span><span class="truitt-submitted__sub">%s</span></span>',
+			esc_html__( '–', 'ct-forms' ),
+			esc_html__( 'Not recorded', 'ct-forms' )
+		);
 
-    $ts = strtotime( (string) $submitted_raw );
-    if ( $ts === false || $ts <= 0 ) {
-        return '<span class="truitt-submitted truitt-submitted--empty"><span class="truitt-submitted__main">–</span><span class="truitt-submitted__sub">Not recorded</span></span>';
-    }
+		if ( empty( $submitted_raw ) || '0000-00-00 00:00:00' === $submitted_raw ) {
+			return $empty_html;
+		}
 
-    // Treat clearly invalid historic values (e.g., -0001-11-30...) as missing.
-    if ( $ts < 0 ) {
-        return '<span class="truitt-submitted truitt-submitted--empty"><span class="truitt-submitted__main">–</span><span class="truitt-submitted__sub">Not recorded</span></span>';
-    }
+		$ts = strtotime( (string) $submitted_raw );
+		if ( false === $ts || $ts <= 0 ) {
+			return $empty_html;
+		}
 
-    $date_fmt = get_option( 'date_format' );
-    $time_fmt = get_option( 'time_format' );
+		// Treat clearly invalid historic values (e.g., -0001-11-30...) as missing.
+		if ( $ts < 0 ) {
+			return $empty_html;
+		}
 
-    $main = wp_date( $date_fmt . ' \a\t ' . $time_fmt, $ts );
-    $ago  = human_time_diff( $ts, current_time( 'timestamp' ) ) . ' ago';
+		$date_fmt = get_option( 'date_format' );
+		$time_fmt = get_option( 'time_format' );
 
-    return '<span class="truitt-submitted"><span class="truitt-submitted__main">' . esc_html( $main ) . '</span><span class="truitt-submitted__sub">' . esc_html( $ago ) . '</span></span>';
-}
+		$main = wp_date( $date_fmt . ' \a\t ' . $time_fmt, $ts );
+		$ago  = sprintf( __( '%s ago', 'ct-forms' ), human_time_diff( $ts, current_time( 'timestamp' ) ) );
+
+		return sprintf(
+			'<span class="truitt-submitted"><span class="truitt-submitted__main">%s</span><span class="truitt-submitted__sub">%s</span></span>',
+			esc_html( $main ),
+			esc_html( $ago )
+		);
+	}
 
     private static function get_status_label( $status ) {
         $status = sanitize_key( (string) $status );
@@ -107,9 +138,9 @@ private static function format_submitted_cell_html( $submitted_raw ) {
      * Handle bulk actions for the Entries list.
      */
     public static function handle_bulk_entries() {
-        if ( ! current_user_can( 'ct_forms_manage' ) ) {
-            wp_die( 'Not allowed' );
-        }
+		if ( ! current_user_can( 'ct_forms_manage' ) ) {
+			wp_die( esc_html__( 'Not allowed.', 'ct-forms' ) );
+		}
 
         check_admin_referer( 'ct_forms_bulk_entries' );
 
@@ -168,7 +199,7 @@ private static function format_submitted_cell_html( $submitted_raw ) {
 
                 $form_settings = CT_Forms_CPT::get_form_settings( (int) $entry['form_id'] );
                 $post = get_post( (int) $entry['form_id'] );
-                $form_name = $post ? $post->post_title : 'Form';
+				$form_name = $post ? $post->post_title : __( 'Form', 'ct-forms' );
 
                 $tokens = array(
                     '{form_name}'    => $form_name,
@@ -178,9 +209,11 @@ private static function format_submitted_cell_html( $submitted_raw ) {
                 $all_fields = '';
                 $data = isset( $entry['data'] ) && is_array( $entry['data'] ) ? $entry['data'] : array();
                 foreach ( (array) $data as $k => $v ) {
-                    if ( is_array( $v ) ) { $v = implode( ', ', $v ); }
-                    $all_fields .= $k . ': ' . $v . "\n";
-                    $tokens[ '{field:' . $k . '}' ] = (string) $v;
+					if ( is_array( $v ) ) {
+						$v = implode( ', ', $v );
+					}
+					$all_fields .= $k . ': ' . $v . "\n";
+					$tokens[ '{field:' . $k . '}' ] = (string) $v;
                 }
                 $tokens['{all_fields}'] = trim( $all_fields );
 
@@ -190,9 +223,9 @@ private static function format_submitted_cell_html( $submitted_raw ) {
                 $headers = array();
 
                 // Reply-To best practice: route replies to the submitter when a valid email is present.
-                if ( ! empty( $data['email'] ) && is_email( $data['email'] ) ) {
-                    $headers[] = 'Reply-To: ' . $data['email'];
-                }
+				if ( ! empty( $data['email'] ) && is_email( $data['email'] ) ) {
+					$headers[] = 'Reply-To: ' . sanitize_email( (string) $data['email'] );
+				}
                 $from_name  = sanitize_text_field( (string) ( $form_settings['from_name'] ?? '' ) );
                 $from_email = sanitize_email( (string) ( $form_settings['from_email'] ?? '' ) );
                 if ( $from_email ) {
@@ -226,14 +259,14 @@ private static function format_submitted_cell_html( $submitted_raw ) {
      * Update an individual entry status from the Entry detail screen.
      */
     public static function update_entry_status() {
-        if ( ! current_user_can( 'ct_forms_manage' ) ) {
-            wp_die( 'Not allowed' );
-        }
+		if ( ! current_user_can( 'ct_forms_manage' ) ) {
+			wp_die( esc_html__( 'Not allowed.', 'ct-forms' ) );
+		}
 
         $entry_id = isset( $_POST['entry_id'] ) ? (int) $_POST['entry_id'] : 0;
-        if ( $entry_id <= 0 ) {
-            wp_die( 'Invalid entry.' );
-        }
+		if ( $entry_id <= 0 ) {
+			wp_die( esc_html__( 'Invalid entry.', 'ct-forms' ) );
+		}
 
         check_admin_referer( 'ct_forms_update_entry_status_' . $entry_id );
 
@@ -425,8 +458,10 @@ private static function format_submitted_cell_html( $submitted_raw ) {
         return $s;
 }
 
-    public static function page_forms() {
-        if ( ! current_user_can( 'ct_forms_manage' ) ) { wp_die( 'Not allowed' ); }
+	public static function page_forms() {
+		if ( ! current_user_can( 'ct_forms_manage' ) ) {
+			wp_die( esc_html__( 'Not allowed.', 'ct-forms' ) );
+		}
 
         // Handle quick create
         if ( isset( $_POST['truitt_new_form'] ) && check_admin_referer( 'truitt_new_form' ) ) {
@@ -836,20 +871,24 @@ private static function page_form_builder( $form_id ) {
 <?php
     }
 
-    public static function save_builder() {
-        if ( ! current_user_can( 'ct_forms_manage' ) ) { wp_die( 'Not allowed' ); }
+	public static function save_builder() {
+		if ( ! current_user_can( 'ct_forms_manage' ) ) {
+			wp_die( esc_html__( 'Not allowed.', 'ct-forms' ) );
+		}
 
-        $form_id = isset( $_POST['form_id'] ) ? (int) $_POST['form_id'] : 0;
-        if ( $form_id <= 0 ) { wp_die( 'Invalid form' ); }
+		$form_id = isset( $_POST['form_id'] ) ? (int) $_POST['form_id'] : 0;
+		if ( $form_id <= 0 ) {
+			wp_die( esc_html__( 'Invalid form.', 'ct-forms' ) );
+		}
 
-        check_admin_referer( 'ct_forms_save_builder_' . $form_id );
+		check_admin_referer( 'ct_forms_save_builder_' . $form_id );
 
-        $raw = isset( $_POST['ct_form_definition'] ) ? wp_unslash( $_POST['ct_form_definition'] ) : '';
-        $def = json_decode( (string) $raw, true );
+		$raw = isset( $_POST['ct_form_definition'] ) ? wp_unslash( $_POST['ct_form_definition'] ) : '';
+		$def = json_decode( (string) $raw, true );
 
-        if ( ! is_array( $def ) || empty( $def['fields'] ) || ! is_array( $def['fields'] ) ) {
-            wp_die( 'Invalid definition JSON' );
-        }
+		if ( ! is_array( $def ) || empty( $def['fields'] ) || ! is_array( $def['fields'] ) ) {
+			wp_die( esc_html__( 'Invalid definition JSON.', 'ct-forms' ) );
+		}
 
         // Sanitize definition
         $fields = array();
@@ -910,13 +949,17 @@ private static function page_form_builder( $form_id ) {
         exit;
     }
 
-    public static function save_form_settings() {
-        if ( ! current_user_can( 'ct_forms_manage' ) ) { wp_die( 'Not allowed' ); }
+	public static function save_form_settings() {
+		if ( ! current_user_can( 'ct_forms_manage' ) ) {
+			wp_die( esc_html__( 'Not allowed.', 'ct-forms' ) );
+		}
 
-        $form_id = isset( $_POST['form_id'] ) ? (int) $_POST['form_id'] : 0;
-        if ( $form_id <= 0 ) { wp_die( 'Invalid form' ); }
+		$form_id = isset( $_POST['form_id'] ) ? (int) $_POST['form_id'] : 0;
+		if ( $form_id <= 0 ) {
+			wp_die( esc_html__( 'Invalid form.', 'ct-forms' ) );
+		}
 
-        check_admin_referer( 'ct_forms_save_form_settings_' . $form_id );
+		check_admin_referer( 'ct_forms_save_form_settings_' . $form_id );
 
 
         // If the builder definition was posted with this request, save it as well.
@@ -992,8 +1035,10 @@ private static function page_form_builder( $form_id ) {
         exit;
     }
 
-    public static function page_entries() {
-        if ( ! current_user_can( 'ct_forms_view_entries' ) && ! current_user_can( 'ct_forms_manage' ) ) { wp_die( 'Not allowed' ); }
+	public static function page_entries() {
+		if ( ! current_user_can( 'ct_forms_view_entries' ) && ! current_user_can( 'ct_forms_manage' ) ) {
+			wp_die( esc_html__( 'Not allowed.', 'ct-forms' ) );
+		}
 
         $entry_id = isset( $_GET['entry_id'] ) ? (int) $_GET['entry_id'] : 0;
         if ( $entry_id > 0 ) {
@@ -1012,10 +1057,10 @@ private static function page_form_builder( $form_id ) {
         <?php
     }
 
-    public static function page_files() {
-        if ( ! current_user_can( 'ct_forms_view_entries' ) && ! current_user_can( 'ct_forms_manage' ) ) {
-            wp_die( 'Not allowed' );
-        }
+	public static function page_files() {
+		if ( ! current_user_can( 'ct_forms_view_entries' ) && ! current_user_can( 'ct_forms_manage' ) ) {
+			wp_die( esc_html__( 'Not allowed.', 'ct-forms' ) );
+		}
 
         $paged = isset( $_GET['paged'] ) ? max( 1, (int) $_GET['paged'] ) : 1;
         $per_page = 25;
@@ -1600,22 +1645,28 @@ private static function page_form_builder( $form_id ) {
     <?php
 }
 
-    public static function resend_admin() {
-        if ( ! current_user_can( 'ct_forms_manage' ) ) { wp_die( 'Not allowed' ); }
+	public static function resend_admin() {
+		if ( ! current_user_can( 'ct_forms_manage' ) ) {
+			wp_die( esc_html__( 'Not allowed.', 'ct-forms' ) );
+		}
 
-        $entry_id = isset( $_POST['entry_id'] ) ? (int) $_POST['entry_id'] : 0;
-        if ( $entry_id <= 0 ) { wp_die( 'Invalid entry' ); }
+		$entry_id = isset( $_POST['entry_id'] ) ? (int) $_POST['entry_id'] : 0;
+		if ( $entry_id <= 0 ) {
+			wp_die( esc_html__( 'Invalid entry.', 'ct-forms' ) );
+		}
 
         check_admin_referer( 'ct_forms_resend_admin_' . $entry_id );
 
-        $entry = CT_Forms_DB::get_entry( $entry_id );
-        if ( ! $entry ) { wp_die( 'Entry not found' ); }
+		$entry = CT_Forms_DB::get_entry( $entry_id );
+		if ( ! $entry ) {
+			wp_die( esc_html__( 'Entry not found.', 'ct-forms' ) );
+		}
 
         $form_settings = CT_Forms_CPT::get_form_settings( $entry['form_id'] );
 
         // Send only admin email; do not resend autoresponder
         $post = get_post( $entry['form_id'] );
-        $form_name = $post ? $post->post_title : 'Form';
+		$form_name = $post ? $post->post_title : __( 'Form', 'ct-forms' );
 
         $tokens = array(
             '{form_name}' => $form_name,
@@ -1638,9 +1689,9 @@ private static function page_form_builder( $form_id ) {
 
         // Reply-To best practice: route replies to the submitter (if present)
         $reply_to = '';
-        if ( ! empty( $data['email'] ) && is_email( $data['email'] ) ) {
-            $reply_to = $data['email'];
-        }
+		if ( ! empty( $data['email'] ) && is_email( $data['email'] ) ) {
+			$reply_to = sanitize_email( (string) $data['email'] );
+		}
         if ( $reply_to ) {
             $headers[] = 'Reply-To: ' . $reply_to;
         }
@@ -1663,9 +1714,11 @@ private static function page_form_builder( $form_id ) {
         exit;
     }
 
-    public static function page_settings() {
-        if ( ! current_user_can( 'ct_forms_manage' ) ) { wp_die( 'Not allowed' ); }
-        $s = self::get_settings();
+	public static function page_settings() {
+		if ( ! current_user_can( 'ct_forms_manage' ) ) {
+			wp_die( esc_html__( 'Not allowed.', 'ct-forms' ) );
+		}
+		$s = self::get_settings();
         ?>
         <div class="wrap ct-forms-wrap">
             <h1><?php esc_html_e( 'CT Forms Settings', 'ct-forms' ); ?></h1>
@@ -1769,10 +1822,10 @@ private static function page_form_builder( $form_id ) {
         <?php
     }
 
-    public static function page_support() {
-        if ( ! current_user_can( 'ct_forms_manage' ) ) {
-            wp_die( 'Not allowed' );
-        }
+	public static function page_support() {
+		if ( ! current_user_can( 'ct_forms_manage' ) ) {
+			wp_die( esc_html__( 'Not allowed.', 'ct-forms' ) );
+		}
 
         $support_email = apply_filters( 'ct_forms_support_email', 'help@christruitt.com' );
         $tip_jar_url   = apply_filters( 'ct_forms_tip_jar_url', 'https://www.christruitt.com/tip-jar' );
@@ -1889,10 +1942,10 @@ private static function page_form_builder( $form_id ) {
         <?php
     }
 
-    public static function handle_send_support() {
-        if ( ! current_user_can( 'ct_forms_manage' ) ) {
-            wp_die( 'Not allowed' );
-        }
+	public static function handle_send_support() {
+		if ( ! current_user_can( 'ct_forms_manage' ) ) {
+			wp_die( esc_html__( 'Not allowed.', 'ct-forms' ) );
+		}
 
         check_admin_referer( 'ct_forms_send_support' );
 
