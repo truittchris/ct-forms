@@ -1,433 +1,252 @@
 <?php
 /**
- * Database layer.
+ * Database helpers for CT Forms.
  *
  * @package CT_Forms
  */
 
-if ( ! defined( 'ABSPATH' ) ) {
-	exit;
-}
+defined( 'ABSPATH' ) || exit;
 
 /**
- * CT_Forms_DB class.
+ * Database helper for CT Forms.
  *
- * @package CT_Forms
+ * Provides CRUD helpers and query methods for CT Forms tables.
  */
-
-final class CT_Forms_DB {
-
-	// Bump this when schema/migrations change.
-	const SCHEMA_VERSION = '1.0.14';
-
+class CT_Forms_DB {
 
 	/**
-	 * entries_table method.
+	 * Schema version.
 	 *
-	 * @return mixed
+	 * @var string
+	 */
+	const SCHEMA_VERSION = '1.2.0';
+
+	/**
+	 * Get the entries table name.
+	 *
+	 * @return string
 	 */
 	public static function entries_table() {
 		global $wpdb;
-		return $wpdb->prefix . 'ct_form_entries';
+		return $wpdb->prefix . 'ct_forms_entries';
 	}
 
 	/**
-	 * maybe_create_tables method.
+	 * Get the forms table name.
 	 *
-	 * @return mixed
+	 * @return string
 	 */
-	public static function maybe_create_tables() {
-		// Back-compat shim
-		self::ensure_schema();
-	}
-
-	/**
-	 * ensure_schema method.
-	 *
-	 * @return mixed
-	 */
-	public static function ensure_schema() {
+	public static function forms_table() {
 		global $wpdb;
-		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+		return $wpdb->prefix . 'ct_forms_forms';
+	}
 
-		$charset = $wpdb->get_charset_collate();
-		$table   = self::entries_table();
+	/**
+	 * Ensure schema is installed and up to date.
+	 *
+	 * @return void
+	 */
+	public static function maybe_install_schema() {
+		global $wpdb;
 
-		// Avoid running dbDelta (and migrations) on every request.
-		// Run when:
-		// - table does not exist, or
-		// - stored schema version is different from current.
-		$installed_version = (string) get_option( 'ct_forms_db_version', '' );
-		$table_exists      = ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) === $table );
-		if ( $table_exists && $installed_version === self::SCHEMA_VERSION ) {
+		$table = self::entries_table();
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+		$table_exists = ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) === $table );
+
+		$installed_version = get_option( 'ct_forms_schema_version', '' );
+		if ( $table_exists && version_compare( $installed_version, self::SCHEMA_VERSION, '>=' ) ) {
 			return;
 		}
 
-		$sql = "CREATE TABLE {$table} (
-			id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
-			form_id BIGINT(20) UNSIGNED NOT NULL,
-			status VARCHAR(20) NOT NULL DEFAULT 'new',
-			submitted_at DATETIME NOT NULL,
-			ip_address VARCHAR(45) NULL,
-			user_agent TEXT NULL,
-			referrer TEXT NULL,
-			page_url TEXT NULL,
-			data LONGTEXT NOT NULL,
-			files LONGTEXT NULL,
-			mail_log LONGTEXT NULL,
+		$charset_collate = $wpdb->get_charset_collate();
+
+		$sql = "CREATE TABLE $table (
+			id bigint(20) NOT NULL AUTO_INCREMENT,
+			form_id bigint(20) NOT NULL,
+			status varchar(50) DEFAULT 'new' NOT NULL,
+			data longtext NOT NULL,
+			mail_log longtext DEFAULT NULL,
+			page_url text DEFAULT NULL,
+			user_agent text DEFAULT NULL,
+			remote_ip varchar(100) DEFAULT NULL,
+			submitted_at datetime DEFAULT '0000-00-00 00:00:00' NOT NULL,
 			PRIMARY KEY  (id),
 			KEY form_id (form_id),
 			KEY status (status),
 			KEY submitted_at (submitted_at)
-		) {$charset};";
+		) $charset_collate;";
 
-		// Run dbDelta to create/alter table.
+		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
 		dbDelta( $sql );
 
-		// Migrate/backfill from older column names if present.
-		$cols = $wpdb->get_col( "SHOW COLUMNS FROM {$table}", 0 );
-		if ( is_array( $cols ) ) {
-			// submitted_at backfill
-			if ( in_array( 'submitted_at', $cols, true ) ) {
-				$source = '';
-				foreach ( array( 'submitted', 'created_at', 'created', 'created_on' ) as $candidate ) {
-					if ( in_array( $candidate, $cols, true ) ) {
-						$source = $candidate;
-						break; }
-				}
-				if ( $source ) {
-					// Only backfill where submitted_at is empty/zero.
-					$wpdb->query( "UPDATE {$table} SET submitted_at = {$source} WHERE submitted_at IS NULL OR submitted_at = '0000-00-00 00:00:00'" );
-				}
-
-				// Backfill truly invalid legacy values so the Entries screen has usable timestamps.
-				// Some legacy installs stored zero/invalid dates which render as "Not recorded".
-				$wpdb->query( "UPDATE {$table} SET submitted_at = NOW() WHERE submitted_at IS NULL OR submitted_at = '0000-00-00 00:00:00' OR submitted_at < '1970-01-01 00:00:00'" );
-			}
-			// status backfill
-			if ( in_array( 'status', $cols, true ) ) {
-				$source = '';
-				foreach ( array( 'state', 'entry_status' ) as $candidate ) {
-					if ( in_array( $candidate, $cols, true ) ) {
-						$source = $candidate;
-						break; }
-				}
-				if ( $source ) {
-					$wpdb->query( "UPDATE {$table} SET status = {$source} WHERE status IS NULL OR status = ''" );
-				}
-			}
-		}
-
-		update_option( 'ct_forms_db_version', self::SCHEMA_VERSION );
-	}
-
-
-	/**
-	 * Return cached list of columns for the entries table.
-	 */
-	public static function entries_columns() {
-		static $cached = null;
-		if ( is_array( $cached ) ) {
-			return $cached; }
-		global $wpdb;
-		$table  = self::entries_table();
-		$cols   = $wpdb->get_col( "SHOW COLUMNS FROM {$table}", 0 );
-		$cached = is_array( $cols ) ? $cols : array();
-		return $cached;
+		update_option( 'ct_forms_schema_version', self::SCHEMA_VERSION );
 	}
 
 	/**
-	 * Return the primary key column for the entries table, supporting legacy schemas.
-	 * Some early installs used `entry_id` instead of `id`.
-	 */
-	public static function entries_pk_column() {
-		$cols = self::entries_columns();
-		if ( in_array( 'id', $cols, true ) ) {
-			return 'id'; }
-		if ( in_array( 'entry_id', $cols, true ) ) {
-			return 'entry_id'; }
-		return 'id';
-	}
-
-
-	/**
-	 * Return the payload/data column for the entries table (supports legacy schemas).
-	 */
-	public static function entries_data_column() {
-		$cols = self::entries_columns();
-		foreach ( array( 'data_json', 'data', 'entry_data', 'fields', 'payload', 'submission' ) as $c ) {
-			if ( in_array( $c, $cols, true ) ) {
-				return $c; }
-		}
-		return '';
-	}
-
-	/**
-	 * Return the created/submitted datetime column for the entries table (supports legacy schemas).
-	 */
-	public static function entries_created_column() {
-		$cols = self::entries_columns();
-		foreach ( array( 'created_at', 'submitted_at', 'date_created', 'created', 'submitted', 'created_on' ) as $c ) {
-			if ( in_array( $c, $cols, true ) ) {
-				return $c; }
-		}
-		return '';
-	}
-
-	/**
-	 * Return the IP column for the entries table (supports legacy schemas).
-	 */
-	public static function entries_ip_column() {
-		$cols = self::entries_columns();
-		foreach ( array( 'ip_address', 'ip', 'user_ip' ) as $c ) {
-			if ( in_array( $c, $cols, true ) ) {
-				return $c; }
-		}
-		return '';
-	}
-
-	/**
-	 * Return the page URL column for the entries table (supports legacy schemas).
-	 */
-	public static function entries_page_url_column() {
-		$cols = self::entries_columns();
-		foreach ( array( 'page_url', 'url', 'page' ) as $c ) {
-			if ( in_array( $c, $cols, true ) ) {
-				return $c; }
-		}
-		return '';
-	}
-
-	/**
-	 * Normalize a DB row to always include the expected keys.
-	 */
-	public static function normalize_entry_row( $row ) {
-		$row = is_array( $row ) ? $row : array();
-		$pk  = self::entries_pk_column();
-
-		if ( ! isset( $row['id'] ) && isset( $row[ $pk ] ) ) {
-			$row['id'] = $row[ $pk ];
-		}
-
-		if ( ! isset( $row['form_id'] ) && isset( $row['form'] ) ) {
-			$row['form_id'] = $row['form'];
-		}
-
-		if ( ! isset( $row['submitted_at'] ) ) {
-			foreach ( array( 'submitted', 'created_at', 'created', 'created_on' ) as $c ) {
-				if ( isset( $row[ $c ] ) ) {
-					$row['submitted_at'] = $row[ $c ];
-					break; }
-			}
-		}
-
-		if ( ! isset( $row['status'] ) ) {
-			foreach ( array( 'state', 'entry_status' ) as $c ) {
-				if ( isset( $row[ $c ] ) ) {
-					$row['status'] = $row[ $c ];
-					break; }
-			}
-		}
-
-		if ( ! isset( $row['page_url'] ) ) {
-			foreach ( array( 'source_url' ) as $c ) {
-				if ( isset( $row[ $c ] ) ) {
-					$row['page_url'] = $row[ $c ];
-					break; }
-			}
-		}
-
-		return $row;
-	}
-
-
-	/**
-	 * insert_entry method.
+	 * Create an entry.
 	 *
-	 * @param mixed $form_id Parameter.
-	 * @param mixed $data Parameter.
-	 * @param mixed $files Parameter.
-	 * @param mixed $meta Parameter.
-	 * @return mixed
+	 * @param array $args Entry arguments.
+	 * @return int|false
 	 */
-	public static function insert_entry( $form_id, $data, $files, $meta ) {
+	public static function create_entry( array $args ) {
 		global $wpdb;
 
-		$table = self::entries_table();
-
-		$row = array(
-			'form_id'      => (int) $form_id,
-			'status'       => 'new',
+		$data = array(
+			'form_id'      => isset( $args['form_id'] ) ? (int) $args['form_id'] : 0,
+			'status'       => isset( $args['status'] ) ? sanitize_key( $args['status'] ) : 'new',
+			'data'         => isset( $args['data'] ) ? wp_json_encode( $args['data'] ) : wp_json_encode( array() ),
+			'page_url'     => isset( $args['page_url'] ) ? esc_url_raw( $args['page_url'] ) : '',
+			'user_agent'   => isset( $args['user_agent'] ) ? sanitize_text_field( $args['user_agent'] ) : '',
+			'remote_ip'    => isset( $args['remote_ip'] ) ? sanitize_text_field( $args['remote_ip'] ) : '',
 			'submitted_at' => current_time( 'mysql' ),
-			'ip_address'   => isset( $meta['ip'] ) ? sanitize_text_field( $meta['ip'] ) : null,
-			'user_agent'   => isset( $meta['ua'] ) ? wp_strip_all_tags( $meta['ua'] ) : null,
-			'referrer'     => isset( $meta['ref'] ) ? esc_url_raw( $meta['ref'] ) : null,
-			'page_url'     => isset( $meta['url'] ) ? esc_url_raw( $meta['url'] ) : null,
-			'data'         => wp_json_encode( $data ),
-			'files'        => $files ? wp_json_encode( $files ) : null,
-			'mail_log'     => null,
 		);
 
-		$wpdb->insert( $table, $row );
-		return (int) $wpdb->insert_id;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+		$result = $wpdb->insert( self::entries_table(), $data );
+
+		return $result ? $wpdb->insert_id : false;
 	}
 
 	/**
-	 * update_entry_status method.
+	 * Get an entry by ID.
 	 *
-	 * @param mixed $entry_id Parameter.
-	 * @param mixed $status Parameter.
-	 * @return mixed
+	 * @param int $id Entry ID.
+	 * @return array|null
 	 */
-	public static function update_entry_status( $entry_id, $status ) {
+	public static function get_entry( $id ) {
 		global $wpdb;
-		$table   = self::entries_table();
-		$allowed = array( 'new', 'reviewed', 'follow_up', 'spam', 'archived' );
-		if ( ! in_array( $status, $allowed, true ) ) {
-			return false;
+
+		$table = self::entries_table();
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $table WHERE id = %d", (int) $id ), ARRAY_A );
+
+		if ( ! $row ) {
+			return null;
 		}
-		return (bool) $wpdb->update( $table, array( 'status' => $status ), array( self::entries_pk_column() => (int) $entry_id ) );
+
+		return self::normalize_entry_row( $row );
 	}
 
 	/**
-	 * update_entry_mail_log method.
+	 * Update an entry's status.
 	 *
-	 * @param mixed $entry_id Parameter.
-	 * @param mixed $mail_log Parameter.
-	 * @return mixed
+	 * @param int    $id     Entry ID.
+	 * @param string $status New status.
+	 * @return bool
 	 */
-	public static function update_entry_mail_log( $entry_id, $mail_log ) {
+	public static function update_entry_status( $id, $status ) {
 		global $wpdb;
-		$table = self::entries_table();
-		return (bool) $wpdb->update( $table, array( 'mail_log' => wp_json_encode( $mail_log ) ), array( self::entries_pk_column() => (int) $entry_id ) );
-	}
 
-	/**
-	 * update_entry_files method.
-	 *
-	 * @param mixed $entry_id Parameter.
-	 * @param mixed $files Parameter.
-	 * @return mixed
-	 */
-	public static function update_entry_files( $entry_id, $files ) {
-		global $wpdb;
-		$table = self::entries_table();
-
-		$value = empty( $files ) ? null : wp_json_encode( $files );
-		return (bool) $wpdb->update( $table, array( 'files' => $value ), array( self::entries_pk_column() => (int) $entry_id ) );
-	}
-
-	/**
-	 * get_entries_with_files method.
-	 *
-	 * @param mixed $args Parameter.
-	 * @return mixed
-	 */
-	public static function get_entries_with_files( $args = array() ) {
-		global $wpdb;
-		$table = self::entries_table();
-
-		$defaults = array(
-			'paged'    => 1,
-			'per_page' => 25,
-			'form_id'  => 0,
-			'search'   => '',
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+		$result = $wpdb->update(
+			self::entries_table(),
+			array( 'status' => sanitize_key( $status ) ),
+			array( 'id' => (int) $id )
 		);
-		$args     = wp_parse_args( $args, $defaults );
 
-		$paged    = max( 1, (int) $args['paged'] );
-		$per_page = max( 1, min( 200, (int) $args['per_page'] ) );
-		$offset   = ( $paged - 1 ) * $per_page;
+		return false !== $result;
+	}
 
-		$where  = "WHERE files IS NOT NULL AND files <> '' AND files <> 'null'";
+	/**
+	 * Update an entry's mail log.
+	 *
+	 * @param int   $id  Entry ID.
+	 * @param array $log Log data.
+	 * @return bool
+	 */
+	public static function update_entry_mail_log( $id, array $log ) {
+		global $wpdb;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+		$result = $wpdb->update(
+			self::entries_table(),
+			array( 'mail_log' => wp_json_encode( $log ) ),
+			array( 'id' => (int) $id )
+		);
+
+		return false !== $result;
+	}
+
+	/**
+	 * Delete an entry.
+	 *
+	 * @param int $id Entry ID.
+	 * @return bool
+	 */
+	public static function delete_entry( $id ) {
+		global $wpdb;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+		$result = $wpdb->delete( self::entries_table(), array( 'id' => (int) $id ) );
+
+		return false !== $result;
+	}
+
+	/**
+	 * Get entries.
+	 *
+	 * @param array $filters Filters and pagination.
+	 * @return array { count: int, items: array }
+	 */
+	public static function get_entries( array $filters = array() ) {
+		global $wpdb;
+
+		$table  = self::entries_table();
+		$where  = array( '1=1' );
 		$params = array();
+		$per    = isset( $filters['per_page'] ) ? max( 1, (int) $filters['per_page'] ) : 20;
+		$page   = isset( $filters['page'] ) ? max( 1, (int) $filters['page'] ) : 1;
+		$offset = ( $page - 1 ) * $per;
 
-		if ( ! empty( $args['form_id'] ) ) {
-			$where   .= ' AND form_id = %d';
-			$params[] = (int) $args['form_id'];
+		if ( ! empty( $filters['form_id'] ) ) {
+			$where[]  = 'form_id = %d';
+			$params[] = (int) $filters['form_id'];
 		}
 
-		$search = isset( $args['search'] ) ? (string) $args['search'] : '';
-		$search = trim( wp_strip_all_tags( $search ) );
-		if ( '' !== $search ) {
-			// NOTE: files is stored as JSON; LIKE provides a pragmatic cross-file search (e.g., filename).
-			$where   .= ' AND files LIKE %s';
-			$params[] = '%' . $wpdb->esc_like( $search ) . '%';
+		if ( ! empty( $filters['status'] ) ) {
+			$where[]  = 'status = %s';
+			$params[] = (string) $filters['status'];
 		}
 
-		$sql_count = "SELECT COUNT(*) FROM {$table} {$where}";
-		// Only call $wpdb->prepare() when we have placeholders to fill; otherwise it will trigger a WordPress notice.
-		if ( ! empty( $params ) ) {
-			$sql_count = $wpdb->prepare( $sql_count, ...$params );
-		}
-		$total = (int) $wpdb->get_var( $sql_count );
+		$where_sql = 'WHERE ' . implode( ' AND ', $where );
 
-		$sql_items    = "SELECT * FROM {$table} {$where} ORDER BY submitted_at DESC LIMIT %d OFFSET %d";
-		$params_items = array_merge( $params, array( $per_page, $offset ) );
-		$rows         = (array) $wpdb->get_results( $wpdb->prepare( $sql_items, ...$params_items ), ARRAY_A );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
+		$count = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM $table $where_sql", $params ) );
 
-		foreach ( $rows as &$row ) {
-			$row          = self::normalize_entry_row( $row );
-			$row['data']  = $row['data'] ? json_decode( $row['data'], true ) : array();
-			$row['files'] = $row['files'] ? json_decode( $row['files'], true ) : array();
-		}
+		$sql_params = array_merge( $params, array( $per, $offset ) );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber
+		$items = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM $table $where_sql ORDER BY submitted_at DESC, id DESC LIMIT %d OFFSET %d", $sql_params ), ARRAY_A );
 
 		return array(
-			'total' => $total,
-			'items' => $rows,
+			'count' => $count,
+			'items' => array_map( array( __CLASS__, 'normalize_entry_row' ), (array) $items ),
 		);
 	}
 
 	/**
-	 * get_entry method.
+	 * Normalize an entry row for consistent downstream use.
 	 *
-	 * @param mixed $entry_id Parameter.
-	 * @return mixed
+	 * @param array $row Raw entry row from the database.
+	 *
+	 * @return array Normalized row.
 	 */
-	public static function get_entry( $entry_id ) {
-		global $wpdb;
-		$table = self::entries_table();
-		$pk    = self::entries_pk_column();
-		$row   = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table} WHERE {$pk} = %d", (int) $entry_id ), ARRAY_A );
-		$row   = self::normalize_entry_row( $row );
-		if ( ! $row ) {
-			return null; }
-		$row['data']     = json_decode( $row['data'], true );
-		$row['files']    = $row['files'] ? json_decode( $row['files'], true ) : array();
-		$row['mail_log'] = $row['mail_log'] ? json_decode( $row['mail_log'], true ) : array();
+	public static function normalize_entry_row( $row ) {
+		$row = (array) $row;
+
+		$row['id']      = (int) $row['id'];
+		$row['form_id'] = (int) $row['form_id'];
+		$row['data']    = json_decode( (string) $row['data'], true );
+		if ( ! is_array( $row['data'] ) ) {
+			$row['data'] = array();
+		}
+
+		$row['mail_log'] = json_decode( (string) $row['mail_log'], true );
+		if ( ! is_array( $row['mail_log'] ) ) {
+			$row['mail_log'] = array();
+		}
+
 		return $row;
-	}
-
-	/**
-	 * delete_entry method.
-	 *
-	 * @param mixed $entry_id Parameter.
-	 * @return mixed
-	 */
-	public static function delete_entry( $entry_id ) {
-		global $wpdb;
-		$table = self::entries_table();
-		$pk    = self::entries_pk_column();
-		return (bool) $wpdb->delete( $table, array( $pk => (int) $entry_id ) );
-	}
-
-	/**
-	 * delete_entries_older_than_days method.
-	 *
-	 * @param mixed $days Parameter.
-	 * @return mixed
-	 */
-	public static function delete_entries_older_than_days( $days ) {
-		global $wpdb;
-		$table = self::entries_table();
-		$days  = (int) $days;
-		if ( $days <= 0 ) {
-			return 0; }
-		return (int) $wpdb->query(
-			$wpdb->prepare(
-				"DELETE FROM {$table} WHERE submitted_at < ( NOW() - INTERVAL %d DAY )",
-				$days
-			)
-		);
 	}
 }

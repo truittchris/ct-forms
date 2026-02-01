@@ -1,0 +1,157 @@
+diff --git a/includes/class-ct-forms-db.php b/includes/class-ct-forms-db.php
+index 63db46b..2cbbd49 100644
+--- a/includes/class-ct-forms-db.php
++++ b/includes/class-ct-forms-db.php
+@@ -22,7 +22,7 @@
+ 
+ 
+ 	/**
+-	 * entries_table method.
++	 * Entries_table method.
+ 	 *
+ 	 * @return mixed
+ 	 */
+@@ -32,17 +32,17 @@
+ 	}
+ 
+ 	/**
+-	 * maybe_create_tables method.
++	 * Maybe_create_tables method.
+ 	 *
+ 	 * @return mixed
+ 	 */
+ 	public static function maybe_create_tables() {
+-		// Back-compat shim
++		// Back-compat shim.
+ 		self::ensure_schema();
+ 	}
+ 
+ 	/**
+-	 * ensure_schema method.
++	 * Ensure_schema method.
+ 	 *
+ 	 * @return mixed
+ 	 */
+@@ -59,7 +59,7 @@
+ 		// - stored schema version is different from current.
+ 		$installed_version = (string) get_option( 'ct_forms_db_version', '' );
+ 		$table_exists      = ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) === $table );
+-		if ( $table_exists && $installed_version === self::SCHEMA_VERSION ) {
++		if ( $table_exists && self::SCHEMA_VERSION === $installed_version ) {
+ 			return;
+ 		}
+ 
+@@ -85,9 +85,10 @@
+ 		dbDelta( $sql );
+ 
+ 		// Migrate/backfill from older column names if present.
++		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name is controlled by this plugin.
+ 		$cols = $wpdb->get_col( "SHOW COLUMNS FROM {$table}", 0 );
+ 		if ( is_array( $cols ) ) {
+-			// submitted_at backfill
++			// submitted_at backfill.
+ 			if ( in_array( 'submitted_at', $cols, true ) ) {
+ 				$source = '';
+ 				foreach ( array( 'submitted', 'created_at', 'created', 'created_on' ) as $candidate ) {
+@@ -97,14 +98,16 @@
+ 				}
+ 				if ( $source ) {
+ 					// Only backfill where submitted_at is empty/zero.
+-					$wpdb->query( "UPDATE {$table} SET submitted_at = {$source} WHERE submitted_at IS NULL OR submitted_at = '0000-00-00 00:00:00'" );
++					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table/column identifiers are controlled by this plugin.
++		$wpdb->query( "UPDATE {$table} SET submitted_at = {$source} WHERE submitted_at IS NULL OR submitted_at = '0000-00-00 00:00:00'" );
+ 				}
+ 
+ 				// Backfill truly invalid legacy values so the Entries screen has usable timestamps.
+ 				// Some legacy installs stored zero/invalid dates which render as "Not recorded".
+-				$wpdb->query( "UPDATE {$table} SET submitted_at = NOW() WHERE submitted_at IS NULL OR submitted_at = '0000-00-00 00:00:00' OR submitted_at < '1970-01-01 00:00:00'" );
++				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name is controlled by this plugin.
++		$wpdb->query( "UPDATE {$table} SET submitted_at = NOW() WHERE submitted_at IS NULL OR submitted_at = '0000-00-00 00:00:00' OR submitted_at < '1970-01-01 00:00:00'" );
+ 			}
+-			// status backfill
++			// status backfill.
+ 			if ( in_array( 'status', $cols, true ) ) {
+ 				$source = '';
+ 				foreach ( array( 'state', 'entry_status' ) as $candidate ) {
+@@ -113,7 +116,8 @@
+ 						break; }
+ 				}
+ 				if ( $source ) {
+-					$wpdb->query( "UPDATE {$table} SET status = {$source} WHERE status IS NULL OR status = ''" );
++					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table/column identifiers are controlled by this plugin.
++		$wpdb->query( "UPDATE {$table} SET status = {$source} WHERE status IS NULL OR status = ''" );
+ 				}
+ 			}
+ 		}
+@@ -242,7 +246,7 @@
+ 
+ 
+ 	/**
+-	 * insert_entry method.
++	 * Insert_entry method.
+ 	 *
+ 	 * @param mixed $form_id Parameter.
+ 	 * @param mixed $data Parameter.
+@@ -273,7 +277,7 @@
+ 	}
+ 
+ 	/**
+-	 * update_entry_status method.
++	 * Update_entry_status method.
+ 	 *
+ 	 * @param mixed $entry_id Parameter.
+ 	 * @param mixed $status Parameter.
+@@ -290,7 +294,7 @@
+ 	}
+ 
+ 	/**
+-	 * update_entry_mail_log method.
++	 * Update_entry_mail_log method.
+ 	 *
+ 	 * @param mixed $entry_id Parameter.
+ 	 * @param mixed $mail_log Parameter.
+@@ -303,7 +307,7 @@
+ 	}
+ 
+ 	/**
+-	 * update_entry_files method.
++	 * Update_entry_files method.
+ 	 *
+ 	 * @param mixed $entry_id Parameter.
+ 	 * @param mixed $files Parameter.
+@@ -318,7 +322,7 @@
+ 	}
+ 
+ 	/**
+-	 * get_entries_with_files method.
++	 * Get_entries_with_files method.
+ 	 *
+ 	 * @param mixed $args Parameter.
+ 	 * @return mixed
+@@ -379,7 +383,7 @@
+ 	}
+ 
+ 	/**
+-	 * get_entry method.
++	 * Get_entry method.
+ 	 *
+ 	 * @param mixed $entry_id Parameter.
+ 	 * @return mixed
+@@ -399,7 +403,7 @@
+ 	}
+ 
+ 	/**
+-	 * delete_entry method.
++	 * Delete_entry method.
+ 	 *
+ 	 * @param mixed $entry_id Parameter.
+ 	 * @return mixed
+@@ -412,7 +416,7 @@
+ 	}
+ 
+ 	/**
+-	 * delete_entries_older_than_days method.
++	 * Delete_entries_older_than_days method.
+ 	 *
+ 	 * @param mixed $days Parameter.
+ 	 * @return mixed
