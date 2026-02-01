@@ -4,7 +4,7 @@ Tags: forms, contact form, file uploads, entries, notifications
 Requires at least: 6.0
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.0.52
+Stable tag: 1.0.53
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -40,6 +40,10 @@ Uploads are stored under wp-content/uploads/ct-forms/ (site-specific paths may v
 
 == Changelog ==
 
+= 1.0.53 =
+* Packaging: synchronized composer.json and composer.lock dependencies for CI/CD workflows.
+* Security: fixed a JSON parse error in plugin configuration.
+
 = 1.0.52 =
 * Code style: address PHPCS baseline issues (file/class/method docblocks, tabs, guard formatting).
 * Uninstall: silence false-positive prepared SQL warning for internal table names and add schema-change ignore.
@@ -50,50 +54,10 @@ Uploads are stored under wp-content/uploads/ct-forms/ (site-specific paths may v
 * Security: use WP_Filesystem for writing .htaccess on activation and for uninstall cleanup.
 * I18n: make default field labels translatable.
 
-= 1.0.50 =
-* Packaging: include stable tag 1.0.50 and sync changelog history.
-
-= 1.0.49 =
-* Confirmation: make the confirmation message field a WYSIWYG editor.
-* Fix: normalize stripped newline artifacts so "nn" no longer appears in confirmation output.
-
-= 1.0.48 =
-* Builder: add Date, Time, and State (US) field types.
-* I18n: fix placeholder ordering, add translators comments, and add missing text domain args.
-
-= 1.0.47 =
-* Frontend: remove the default confirmation border styling to avoid a nested "double box" look in common themes.
-
-= 1.0.46 =
-* Fix: resolve a PHP parse error when viewing Forms after adding reCAPTCHA type options.
-
-= 1.0.45 =
-* Settings: add selectable reCAPTCHA type (Disabled, v2 checkbox, v2 invisible, v3)
-* Frontend: support v3 token generation and v2 invisible execution
-* Backend: verify v3 score/action when enabled
-
-= 1.0.40 =
-* Packaging: align plugin version values, add WordPress readme, remove dev scripts from distribution zip.
-
 == Upgrade Notice ==
+
+= 1.0.53 =
+Composer dependency synchronization and JSON formatting fixes.
 
 = 1.0.52 =
 PHPCS/WPCS cleanup and uninstall query lint adjustments.
-
-= 1.0.51 =
-Version parity, filesystem hardening, and small i18n improvements.
-
-= 1.0.50 =
-Metadata and packaging alignment.
-
-= 1.0.49 =
-WYSIWYG confirmation message editor and newline artifact fixes.
-
-= 1.0.48 =
-Adds Date/Time/State fields and includes i18n compliance fixes.
-
-= 1.0.47 =
-Removes default confirmation border styling to better match modern themes.
-
-= 1.0.40 =
-Packaging and version alignment improvements.
