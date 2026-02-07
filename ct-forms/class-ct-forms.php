@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       CT Forms
  * Description:       Lightweight form builder with email notifications, autoresponder, and entry storage.
- * Version:           6.2.0
+ * Version:           6.2.1
  * Author:            CT
  * License:           GPL-2.0-or-later
  */
@@ -13,8 +13,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class CT_Forms {
 
-    const VERSION    = '6.2.0';
-    const DB_VERSION = '1.1';
+    const VERSION    = '6.2.1';
+    const DB_VERSION = '1.2';
 
     private static $instance = null;
 
@@ -84,12 +84,15 @@ class CT_Forms {
             created_at datetime NOT NULL,
             ip varchar(45) NULL,
             user_agent text NULL,
+            submitter_name varchar(255) NULL,
+            submitter_email varchar(255) NULL,
             fields_json longtext NOT NULL,
             status varchar(20) NOT NULL DEFAULT 'new',
             PRIMARY KEY (id),
             KEY form_id (form_id),
             KEY created_at (created_at),
-            KEY status (status)
+            KEY status (status),
+            KEY submitter_email (submitter_email)
         ) {$charset_collate};";
 
         dbDelta( $sql_forms );
@@ -409,29 +412,106 @@ class CT_Forms {
         wp_send_json_success();
     }
 
-    private function insert_entry( $form_id, $fields_array ) {
-        global $wpdb;
 
-        $entries_table = $wpdb->prefix . 'ct_form_entries';
 
-        $ip = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : '';
-        $ua = isset( $_SERVER['HTTP_USER_AGENT'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) ) : '';
+/**
+ * Derive submitter name/email from stored field labels and values.
+ *
+ * @param array $fields_array Stored fields (Label => value).
+ * @return array{name: string, email: string}
+ */
+private function derive_submitter_details( $fields_array ) {
+    $name  = '';
+    $email = '';
 
-        $wpdb->insert(
-            $entries_table,
-            array(
-                'form_id'     => absint( $form_id ),
-                'created_at'  => current_time( 'mysql' ),
-                'ip'          => $ip,
-                'user_agent'  => $ua,
-                'fields_json' => wp_json_encode( $fields_array ),
-                'status'      => 'new',
-            ),
-            array( '%d', '%s', '%s', '%s', '%s', '%s' )
-        );
-
-        return (int) $wpdb->insert_id;
+    if ( ! is_array( $fields_array ) ) {
+        return array( 'name' => $name, 'email' => $email );
     }
+
+    $first = '';
+    $last  = '';
+
+    foreach ( $fields_array as $label => $value ) {
+        $label_lc = strtolower( (string) $label );
+
+        if ( is_array( $value ) ) {
+            $value_str = implode( ', ', array_map( 'strval', $value ) );
+        } else {
+            $value_str = (string) $value;
+        }
+
+        $value_str = trim( $value_str );
+
+        if ( '' === $email ) {
+            if ( false !== strpos( $label_lc, 'email' ) ) {
+                $maybe = sanitize_email( $value_str );
+                if ( is_email( $maybe ) ) {
+                    $email = $maybe;
+                }
+            } else {
+                $maybe = sanitize_email( $value_str );
+                if ( is_email( $maybe ) ) {
+                    $email = $maybe;
+                }
+            }
+        }
+
+        if ( '' === $name ) {
+            if ( false !== strpos( $label_lc, 'first' ) && false !== strpos( $label_lc, 'name' ) ) {
+                $first = sanitize_text_field( $value_str );
+            } elseif ( false !== strpos( $label_lc, 'last' ) && false !== strpos( $label_lc, 'name' ) ) {
+                $last = sanitize_text_field( $value_str );
+            } elseif ( false !== strpos( $label_lc, 'full' ) && false !== strpos( $label_lc, 'name' ) ) {
+                $name = sanitize_text_field( $value_str );
+            } elseif ( 'name' === trim( $label_lc ) ) {
+                $name = sanitize_text_field( $value_str );
+            }
+        }
+    }
+
+    if ( '' === $name ) {
+        $combo = trim( $first . ' ' . $last );
+        if ( '' !== $combo ) {
+            $name = $combo;
+        }
+    }
+
+    $email = apply_filters( 'ct_forms_entry_submitter_email', $email, $fields_array, 0 );
+    $name  = apply_filters( 'ct_forms_entry_submitter_name', $name, $fields_array, 0 );
+
+    return array(
+        'name'  => (string) $name,
+        'email' => (string) $email,
+    );
+}
+    
+private function insert_entry( $form_id, $fields_array ) {
+    global $wpdb;
+
+    $entries_table = $wpdb->prefix . 'ct_form_entries';
+
+    $ip = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : '';
+    $ua = isset( $_SERVER['HTTP_USER_AGENT'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) ) : '';
+
+    $submitter = $this->derive_submitter_details( $fields_array );
+
+    $wpdb->insert(
+        $entries_table,
+        array(
+            'form_id'         => absint( $form_id ),
+            'created_at'      => current_time( 'mysql' ),
+            'ip'              => $ip,
+            'user_agent'      => $ua,
+            'submitter_name'  => ( '' !== $submitter['name'] ) ? $submitter['name'] : null,
+            'submitter_email' => ( '' !== $submitter['email'] ) ? $submitter['email'] : null,
+            'fields_json'     => wp_json_encode( $fields_array ),
+            'status'          => 'new',
+        ),
+        array( '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s' )
+    );
+
+    return (int) $wpdb->insert_id;
+}
 
     public function handle_frontend_submission() {
         check_ajax_referer( 'ct_frontend_submit_nonce', 'security' );
@@ -673,7 +753,7 @@ class CT_Forms {
 
         // Fetch rows.
         $rows_sql = $wpdb->prepare(
-            "SELECT e.id, e.form_id, e.created_at, e.status, f.title AS form_title
+            "SELECT e.id, e.form_id, e.created_at, e.status, e.submitter_name, e.submitter_email, f.title AS form_title
              FROM {$entries_table} e
              LEFT JOIN {$forms_table} f ON f.id = e.form_id
              {$where_sql}
@@ -711,6 +791,8 @@ class CT_Forms {
         echo '<thead><tr>';
         echo '<th style="width:90px;">' . esc_html__( 'ID', 'ct-forms' ) . '</th>';
         echo '<th>' . esc_html__( 'Form', 'ct-forms' ) . '</th>';
+        echo '<th>' . esc_html__( 'Name', 'ct-forms' ) . '</th>';
+        echo '<th>' . esc_html__( 'Email', 'ct-forms' ) . '</th>' ;
         echo '<th style="width:220px;">' . esc_html__( 'Submitted', 'ct-forms' ) . '</th>';
         echo '<th style="width:120px;">' . esc_html__( 'Status', 'ct-forms' ) . '</th>';
         echo '<th style="width:140px;">' . esc_html__( 'Actions', 'ct-forms' ) . '</th>';
@@ -742,6 +824,12 @@ class CT_Forms {
                 echo '<tr>';
                 echo '<td>' . esc_html( (string) absint( $r->id ) ) . '</td>';
                 echo '<td>' . esc_html( (string) $r->form_title ) . '</td>';
+                echo '<td>' . esc_html( (string) $r->submitter_name ) . '</td>';
+                $email_cell = '';
+                if ( ! empty( $r->submitter_email ) ) {
+                    $email_cell = '<a href="' . esc_url( 'mailto:' . (string) $r->submitter_email ) . '">' . esc_html( (string) $r->submitter_email ) . '</a>';
+                }
+                echo '<td>' . $email_cell . '</td>';
                 echo '<td>' . esc_html( (string) $r->created_at ) . '</td>';
                 echo '<td>' . esc_html( (string) $r->status ) . '</td>';
                 echo '<td><a href="' . esc_url( $view_url ) . '">' . esc_html__( 'View', 'ct-forms' ) . '</a> | ';
@@ -749,7 +837,7 @@ class CT_Forms {
                 echo '</tr>';
             }
         } else {
-            echo '<tr><td colspan="5">' . esc_html__( 'No entries found.', 'ct-forms' ) . '</td></tr>';
+            echo '<tr><td colspan="7">' . esc_html__( 'No entries found.', 'ct-forms' ) . '</td></tr>';
         }
 
         echo '</tbody></table>';

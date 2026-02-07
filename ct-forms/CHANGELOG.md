@@ -12,8 +12,10 @@ This project follows Semantic Versioning.
   - View entry details (submitted fields, metadata)
   - Delete entries (nonce-protected)
 
-### Improved
-- Viewing an entry marks it as read.
+## [6.2.1] – 2026-02-07
+### Added
+- Entries list now includes submitter name and email.
+- Submissions now persist derived submitter name/email into the entries table.
 
 ## [6.1.2] – 2026-02-06
 ### Fixed

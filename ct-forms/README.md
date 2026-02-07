@@ -1,7 +1,7 @@
 # CT Forms
 CT Forms is a lightweight WordPress form builder with a drag-and-drop admin builder, email notifications, and entry storage.
 
-Version: 6.2.0  
+Version: 6.2.1  
 License: GPL-2.0-or-later
 
 ## Features
